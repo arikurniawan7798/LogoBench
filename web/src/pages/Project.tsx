@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { api, logoUrl, toApiError, type ApiError, type Project as ProjectT } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
-import ComingNext from "../components/ComingNext";
 import { href, navigate } from "../router";
 import ReviewTab from "./ReviewTab";
+import AdvancedTab from "./AdvancedTab";
+import ColorsTab from "./ColorsTab";
+import TypeTab from "./TypeTab";
+import MockupsTab from "./MockupsTab";
+import ExportTab from "./ExportTab";
+import IdentityTab from "./IdentityTab";
 
 export const TABS = [
   { id: "review", label: "Review" },
@@ -14,15 +19,6 @@ export const TABS = [
   { id: "export", label: "Export" },
   { id: "identity", label: "Identity" },
 ] as const;
-
-const PLACEHOLDER_COPY: Record<string, string> = {
-  advanced: "Prioritized fixes, a pre-delivery checklist and presentation ideas.",
-  colors: "Palette extracted from the logo, with roles, HEX/RGB/CMYK and UI previews.",
-  type: "Typeface pairings that suit the mark, previewed in context.",
-  mockups: "The logo placed on cards, signage, screens and merchandise.",
-  export: "Production files: sizes, formats, favicons and a one-page brand sheet.",
-  identity: "One action that runs the whole workflow and builds an identity page.",
-};
 
 export default function Project({ id, tab }: { id: string; tab: string }) {
   const [project, setProject] = useState<ProjectT | null>(null);
@@ -77,7 +73,6 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
   }
 
   const latest = project.versions[project.versions.length - 1];
-  const activeLabel = TABS.find((t) => t.id === active)!.label;
 
   return (
     <div className="project">
@@ -119,12 +114,29 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
       </div>
 
       <div className="tabpanel" role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`} tabIndex={0}>
-        {active === "review" ? (
-          <ReviewTab projectId={project.id} />
-        ) : (
-          <ComingNext title={activeLabel} detail={PLACEHOLDER_COPY[active]} />
-        )}
+        <TabContent tab={active} project={project} />
       </div>
     </div>
   );
+}
+
+/** Keyed by project id so a tab never shows (or receives late responses for) another project's data. */
+function TabContent({ tab, project }: { tab: string; project: ProjectT }) {
+  const id = project.id;
+  switch (tab) {
+    case "advanced":
+      return <AdvancedTab key={id} projectId={id} />;
+    case "colors":
+      return <ColorsTab key={id} projectId={id} />;
+    case "type":
+      return <TypeTab key={id} projectId={id} />;
+    case "mockups":
+      return <MockupsTab key={id} projectId={id} versionId={project.versions[project.versions.length - 1]?.id} />;
+    case "export":
+      return <ExportTab key={id} project={project} />;
+    case "identity":
+      return <IdentityTab key={id} projectId={id} />;
+    default:
+      return <ReviewTab key={id} projectId={id} />;
+  }
 }

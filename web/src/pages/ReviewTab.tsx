@@ -1,14 +1,7 @@
 import { useEffect, useState } from "react";
-import { api, toApiError, DIMENSIONS, type ApiError, type Dimension, type Personality, type ReviewResult } from "../api";
+import { api, toApiError, type ApiError, type Personality, type ReviewResult } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
-
-const DIMENSION_COPY: Record<Dimension, { label: string; hint: string }> = {
-  readability: { label: "Readability", hint: "Can it be read and recognized quickly?" },
-  originality: { label: "Originality", hint: "How far it stands apart from familiar marks." },
-  balance: { label: "Balance", hint: "Distribution of visual weight and spacing." },
-  scalability: { label: "Scalability", hint: "Holds up from favicon to billboard." },
-  misinterpretation: { label: "Misreading safety", hint: "Higher means less likely to be misread." },
-};
+import ScoreList from "../components/ScoreList";
 
 const PERSONALITY_LABELS: Record<keyof Personality, string> = {
   presence: "Presence",
@@ -106,32 +99,7 @@ export default function ReviewTab({ projectId }: { projectId: string }) {
 
           <p className="review-summary">{state.result.summary}</p>
 
-          <ul className="scores" aria-label="Scores">
-            {DIMENSIONS.map((dim) => {
-              const { score, reason } = state.result.scores[dim];
-              return (
-                <li key={dim} className="score" data-testid={`score-${dim}`}>
-                  <div className="score-top">
-                    <h3 className="score-label">{DIMENSION_COPY[dim].label}</h3>
-                    <span className="score-value">
-                      <span aria-hidden="true">
-                        {score}
-                        <span className="score-max">/10</span>
-                      </span>
-                      <span className="sr-only">{score} out of 10</span>
-                    </span>
-                  </div>
-                  <div className="meter" aria-hidden="true">
-                    {Array.from({ length: 10 }, (_, i) => (
-                      <span key={i} className={i < score ? "tick on" : "tick"} />
-                    ))}
-                  </div>
-                  <p className="score-reason">{reason}</p>
-                  <p className="score-hint muted small">{DIMENSION_COPY[dim].hint}</p>
-                </li>
-              );
-            })}
-          </ul>
+          <ScoreList scores={state.result.scores} />
 
           <section className="personality" aria-labelledby="personality-title">
             <h3 id="personality-title">Brand personality</h3>

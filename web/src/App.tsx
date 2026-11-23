@@ -3,7 +3,9 @@ import { href, useRoute, type Route } from "./router";
 import Home from "./pages/Home";
 import Project from "./pages/Project";
 import Settings from "./pages/Settings";
-import ComingNext from "./components/ComingNext";
+import ComparePage from "./pages/ComparePage";
+import FormsPage from "./pages/FormsPage";
+import ToolsPage from "./pages/ToolsPage";
 
 const NAV = [
   { page: "compare", label: "Compare", to: href.compare() },
@@ -21,11 +23,11 @@ function Page({ route }: { route: Route }) {
     case "settings":
       return <Settings />;
     case "compare":
-      return <ComingNext level={1} title="Compare" detail="Put two or three logos side by side against the same brief." />;
+      return <ComparePage />;
     case "forms":
-      return <ComingNext level={1} title="Forms" detail="Client questionnaires that feed the brief used in reviews." />;
+      return <FormsPage />;
     case "tools":
-      return <ComingNext level={1} title="Tools" detail="Small utilities for working on a mark." />;
+      return <ToolsPage />;
     default:
       return (
         <section>
