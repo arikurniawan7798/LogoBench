@@ -1,8 +1,8 @@
 import { XMLParser, XMLBuilder } from "fast-xml-parser";
 
 const ATTR = "@_";
-const DROP_TAGS = new Set(["script", "foreignobject", "iframe", "object", "embed", "audio", "video", "canvas", "set", "animate", "animatetransform", "animatemotion"]);
-const HREF_ATTRS = new Set(["href", "xlink:href", "src"]);
+const DROP_TAGS = new Set(["script", "foreignobject", "iframe", "object", "embed", "audio", "video", "canvas", "set", "animate", "animatetransform", "animatemotion", "handler", "listener", "feimage"]);
+const HREF_LOCAL_NAMES = new Set(["href", "src"]);
 
 type Node = Record<string, any>;
 
@@ -26,7 +26,16 @@ const builder = new XMLBuilder({
   format: false,
 });
 
-function cleanCss(css: string): string {
+function decodeCssEscapes(css: string): string {
+  return css.replace(/\\([0-9a-fA-F]{1,6})[ \t\r\n\f]?|\\([^\r\n\f])/g, (_m, hex?: string, ch?: string) => {
+    if (ch !== undefined) return ch;
+    const cp = parseInt(hex!, 16);
+    return cp > 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : "";
+  });
+}
+
+function cleanCss(raw: string): string {
+  const css = decodeCssEscapes(raw);
   return css
     .replace(/@import[^;]*;?/gi, "")
     .replace(/url\(\s*(['"]?)(?!#)[^)]*\)/gi, "none")
@@ -42,7 +51,8 @@ function cleanAttrs(attrs: Record<string, string> | undefined): Record<string, s
     const val = String(v);
     if (name.startsWith("on")) continue;
     // only same-document references are allowed
-    if (HREF_ATTRS.has(name) && !/^\s*#/.test(val)) continue;
+    // match on the LOCAL name so aliased xlink prefixes (q:href) are covered too
+    if (HREF_LOCAL_NAMES.has(name.replace(/^.*:/, "")) && !/^\s*#/.test(val)) continue;
     if (/^javascript:/i.test(val.replace(/[\u0000- ]/g, ""))) continue;
     out[k] = name === "style" ? cleanCss(val) : val;
   }

@@ -29,4 +29,27 @@ describe("sanitizeSvg", () => {
     expect(out).toContain('fill="#ff0000"');
     expect(out).toContain('href="#g"');
   });
+
+  it("strips aliased-prefix href/src (xlink namespace under another prefix) unless same-document", () => {
+    const out = sanitizeSvg(
+      `<svg xmlns="http://www.w3.org/2000/svg" xmlns:q="http://www.w3.org/1999/xlink"><image q:href="http://evil.com/a.png"/><a q:href="data:text/html,x"><rect width="1" height="1"/></a><use q:href="#ok"/></svg>`,
+    );
+    expect(out).not.toMatch(/evil\.com/);
+    expect(out).not.toMatch(/data:/);
+    expect(out).toContain('q:href="#ok"');
+  });
+  it("neutralises CSS-escaped @import and url() in <style> and style attributes", () => {
+    const out = sanitizeSvg(
+      String.raw`<svg xmlns="http://www.w3.org/2000/svg"><style>@\69mport "http://evil/x.css"; .a{fill:u\72l(http://evil/b)}</style><rect style="fill:u\72l(http://evil/a)" width="1" height="1"/><rect style="fill:url(#g)" width="1" height="1"/></svg>`,
+    );
+    expect(out).not.toMatch(/evil/);
+    expect(out).not.toMatch(/import/i);
+    expect(out).toContain("url(#g)");
+  });
+  it("drops handler, listener and feImage elements", () => {
+    const out = sanitizeSvg(
+      `<svg xmlns="http://www.w3.org/2000/svg"><handler>x</handler><listener/><filter><feImage href="#a"/></filter><rect width="1" height="1"/></svg>`,
+    );
+    expect(out).not.toMatch(/handler|listener|feImage/i);
+  });
 });
