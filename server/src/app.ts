@@ -1,4 +1,5 @@
 import express from "express";
+import path from "node:path";
 import { Store } from "./storage.js";
 import { loadConfig } from "./config.js";
 import { createProvider, type Provider } from "./ai/provider.js";
@@ -21,7 +22,7 @@ import { errorHandler } from "./errors.js";
 import { MAX_UPLOAD_BYTES, MAX_JSON_BYTES } from "./limits.js";
 
 export function createApp(
-  deps: { dataDir?: string; provider?: Provider; limits?: { uploadBytes?: number; jsonBytes?: number }; fontFetcher?: FontFetcher } = {},
+  deps: { dataDir?: string; provider?: Provider; limits?: { uploadBytes?: number; jsonBytes?: number }; fontFetcher?: FontFetcher; webDir?: string } = {},
 ) {
   const store = new Store(deps.dataDir ?? loadConfig().dataDir);
   const ctx: AppContext = {
@@ -51,6 +52,14 @@ export function createApp(
   app.use("/api/forms", formsRouter(ctx));
   app.use("/api/compares", compareRouter(ctx));
   app.use("/api/settings", settingsRouter(ctx));
+  if (deps.webDir) {
+    // Production: serve the built web app. Unknown /api paths keep their JSON 404; other GETs fall back to the SPA.
+    const webDir = path.resolve(deps.webDir);
+    app.use(express.static(webDir, { index: "index.html", dotfiles: "ignore" }));
+    app.get(/^\/(?!api(\/|$)).*/, (_req, res) => {
+      res.sendFile(path.join(webDir, "index.html"));
+    });
+  }
   app.use(errorHandler);
   return app;
 }
