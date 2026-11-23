@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type { Response } from "supertest";
+import { z } from "zod";
 import { unzipSync, strFromU8 } from "fflate";
 import { createApp } from "../src/app.js";
 import { FakeProvider } from "../src/ai/fake.js";
@@ -46,9 +47,11 @@ const binary = (r: Response, cb: (e: Error | null, b: Buffer) => void) => {
 
 let dir: string;
 let app: ReturnType<typeof createApp>;
+let provider: FakeProvider;
 beforeAll(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), "logobench-smoke-"));
-  app = createApp({ dataDir: dir, provider: new FakeProvider([REVIEW, COLORS, TYPE]), fontFetcher: fonts });
+  provider = new FakeProvider([REVIEW, COLORS, TYPE]);
+  app = createApp({ dataDir: dir, provider, fontFetcher: fonts });
 });
 afterAll(async () => {
   await fs.rm(dir, { recursive: true, force: true });
@@ -63,12 +66,21 @@ describe("smoke: whole flow", () => {
     const review = await request(app).post(`/api/projects/${id}/review`).send({});
     expect(review.status).toBe(200);
     expect(review.headers["content-type"]).toMatch(/json/);
+    expect(review.body.result.summary).toBe("Solid mark.");
+    expect(review.body.result.scores.readability.score).toBe(8);
+    const stored = await request(app).get(`/api/projects/${id}/review`);
+    expect(stored.body.result.summary).toBe("Solid mark.");
 
     const colors = await request(app).post(`/api/projects/${id}/colors/suggest`).send({});
     expect(colors.status).toBe(200);
+    expect(JSON.stringify(colors.body)).toContain("Signal Red");
+    expect(JSON.stringify(colors.body)).toContain("#E63946");
 
     const type = await request(app).post(`/api/projects/${id}/type/suggest`).send({});
     expect(type.status).toBe(200);
+    expect(type.body.typeSystem.heading).toBe("Playfair Display");
+    expect(type.body.typeSystem.body).toBe("Inter");
+    expect(provider.callCount).toBe(3);
 
     const mock = await request(app).get(`/api/projects/${id}/mockups/website.png`).buffer(true).parse(binary);
     expect(mock.status).toBe(200);
@@ -86,6 +98,13 @@ describe("smoke: whole flow", () => {
     const files = unzipSync(new Uint8Array(ident.body as Buffer));
     expect(Object.keys(files)).toContain("index.html");
     expect(Object.keys(files)).toContain("assets/logo.svg");
-    expect(strFromU8(files["index.html"])).not.toMatch(/https?:\/\//i);
+    const html = strFromU8(files["index.html"]);
+    expect(html).not.toMatch(/https?:\/\//i);
+    expect(html).toContain("#E63946");
+    expect(html).toContain("#1D3557");
+    expect(html).toContain("Signal Red");
+    expect(html).toContain("Playfair Display");
+    expect(provider.callCount).toBe(3); // queue fully consumed in order; identity.zip made no extra AI call
+    await expect(provider.generateJson({ system: "", prompt: "", images: [], schema: z.any() })).rejects.toThrow(/no queued response/);
   });
 });

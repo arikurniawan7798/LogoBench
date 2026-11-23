@@ -34,8 +34,8 @@ The server reads `.env` at startup. Optional variables in the same file: `PORT` 
 (default `data/`). `.env` is gitignored; never commit it. The key is stored in plaintext in that file. It is only
 used by the server and is never sent to the browser (the settings screen only reports whether a key is set).
 
-You can alternatively paste a key into the Settings screen. That saves it, in plaintext, in `data/settings.json`
-and takes precedence over `.env`.
+The Settings screen only shows whether a key is configured; it cannot set one. The server's settings API also accepts a
+`geminiKey`, which would be stored in plaintext in `data/settings.json` and take precedence over `.env`, but the app does not use this.
 
 Default model: the code uses `gemini-3.6-flash` (`DEFAULT_GEMINI_MODEL` in `server/src/config.ts`). Model names and
 free-tier availability change, so check it against the current Gemini documentation before relying on it. To use a
@@ -52,7 +52,7 @@ reviews than with Gemini.
 
 Everything is stored under `data/` in the repository (gitignored): projects, uploaded logos and versions, reviews,
 colors, type systems, settings. To back up or move your work, copy that folder (set `DATA_DIR` to put it elsewhere).
-It may contain a saved API key if you used the Settings screen, so treat backups accordingly.
+It could contain a plaintext API key only if one was saved through the settings API; your `.env` key is not in it.
 
 ## Features
 
