@@ -1,4 +1,5 @@
-export const PROMPT_VERSION = "review-v1";
+// v2: cache key now includes the provider name (review/cache.ts); older cached reviews are recomputed once.
+export const PROMPT_VERSION = "review-v2";
 
 export const REVIEW_SYSTEM = [
   "You are a logo design reviewer giving feedback on a single logo image.",
@@ -26,7 +27,7 @@ export function reviewPrompt(brief: string): string {
   return `Review the attached logo. ${fenceBrief(brief)}`;
 }
 
-export const ADVANCED_PROMPT_VERSION = "advanced-v1";
+export const ADVANCED_PROMPT_VERSION = "advanced-v2";
 
 export const ADVANCED_SYSTEM = [
   REVIEW_SYSTEM.replace("Respond with JSON only.", "").trimEnd(),

@@ -8,9 +8,10 @@ export type ReviewKind = "review" | "advanced-review";
 const file = (projectId: string, kind: ReviewKind) => `projects/${projectId}/${kind}.json`;
 const sha = (d: crypto.BinaryLike) => crypto.createHash("sha256").update(d).digest("hex");
 
-/** sha256(image bytes) + prompt version + model + sha256(brief). */
-export function cacheKey(bytes: Buffer, promptVersion: string, model: string, brief: string): string {
-  return [sha(bytes), promptVersion, model, sha(brief)].join("|");
+/** sha256(image bytes) + prompt version + provider name + model + sha256(brief). The provider is part of the key so the
+ * same model name served by Gemini and by Ollama never shares a cached result. */
+export function cacheKey(bytes: Buffer, promptVersion: string, providerName: string, model: string, brief: string): string {
+  return [sha(bytes), promptVersion, providerName, model, sha(brief)].join("|");
 }
 
 export const readReview = <T = ReviewResult>(ctx: AppContext, projectId: string, kind: ReviewKind = "review") =>

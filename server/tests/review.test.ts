@@ -6,7 +6,8 @@ import path from "node:path";
 import sharp from "sharp";
 import { createApp } from "../src/app.js";
 import { FakeProvider } from "../src/ai/fake.js";
-import { AiError } from "../src/ai/provider.js";
+import { AiError, type Provider } from "../src/ai/provider.js";
+import { cacheKey } from "../src/review/cache.js";
 import { reviewLogo, PROMPT_VERSION, MAX_BRIEF_CHARS } from "../src/review/review.js";
 import type { AppContext } from "../src/context.js";
 
@@ -103,7 +104,20 @@ describe("reviewLogo", () => {
     expect(sys).toContain("feedback, not authority");
     expect(sys).toContain("a higher score means lower risk");
     expect(provider.calls[0].prompt).toContain("a bakery");
-    expect(PROMPT_VERSION).toBe("review-v1");
+    expect(PROMPT_VERSION).toBe("review-v2");
+  });
+
+  it("the same model name under two providers does not share a cache entry", async () => {
+    provider.enqueue(good());
+    await reviewLogo(ctx, pid, {});
+    const inner = new FakeProvider([{ ...good(), summary: "From the other provider." }]);
+    const other: Provider = { name: "other", model: provider.model, generateJson: (req) => inner.generateJson(req) };
+    const ctx2 = createApp({ hostCheck: false, dataDir: dir, provider: other }).locals.ctx as AppContext;
+    const r = await reviewLogo(ctx2, pid, {});
+    expect(r.cached).toBe(false);
+    expect(inner.callCount).toBe(1);
+    expect(r.result.summary).toBe("From the other provider.");
+    expect(cacheKey(Buffer.from("x"), "v", "a", "m", "")).not.toBe(cacheKey(Buffer.from("x"), "v", "b", "m", ""));
   });
 
   it("rasterizes SVG to PNG before sending", async () => {

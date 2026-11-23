@@ -37,7 +37,7 @@ export async function runCachedReview<T>(
   const { meta, bytes } = await ctx.projects.latestVersion(ctx, projectId);
   const brief = await resolveBrief(ctx, projectId, opts.brief);
   const provider = await ctx.getProvider();
-  const key = cacheKey(bytes, cfg.promptVersion, provider.model, brief);
+  const key = cacheKey(bytes, cfg.promptVersion, provider.name, provider.model, brief);
 
   if (!opts.force) {
     const hit = await readReview<unknown>(ctx, projectId, cfg.kind);
