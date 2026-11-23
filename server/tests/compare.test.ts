@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import request from "supertest";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -177,6 +177,45 @@ describe("compare flow", () => {
     expect(provider.callCount).toBe(1);
     expect(a.body.id).toBe(b.body.id);
     expect((await request(app).get("/api/compares")).body).toHaveLength(1);
+  });
+
+  it("[A,B] and [B,A] do not share an in-flight call", async () => {
+    provider.enqueue(good(["A", "B"], "A"), good(["A", "B"], "A"));
+    const [x, y] = await Promise.all([
+      post([{ projectId: ids[0] }, { projectId: ids[1] }]),
+      post([{ projectId: ids[1] }, { projectId: ids[0] }]),
+    ]);
+    expect(provider.callCount).toBe(2);
+    expect(x.body.id).not.toBe(y.body.id);
+    expect(x.body.result.recommendation.winnerProjectId).toBe(ids[0]);
+    expect(y.body.result.recommendation.winnerProjectId).toBe(ids[1]);
+  });
+
+  it("a request after the first completed creates a second compare", async () => {
+    provider.enqueue(good(), good());
+    const a = await post(items(2), "same");
+    const b = await post(items(2), "same");
+    expect(provider.callCount).toBe(2);
+    expect(a.body.id).not.toBe(b.body.id);
+    expect((await request(app).get("/api/compares")).body).toHaveLength(2);
+  });
+
+  it("list skips corrupt and wrong-shape records; GET of a corrupt one is a clean 404", async () => {
+    provider.enqueue(good());
+    const c = (await post(items(2))).body;
+    await fs.writeFile(path.join(dir, "compares", "bad-json.json"), "{ not json SECRET");
+    await fs.writeFile(path.join(dir, "compares", "bad-shape.json"), JSON.stringify({ id: "bad-shape" }));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const list = await request(app).get("/api/compares");
+    expect(list.status).toBe(200);
+    expect(list.body.map((x: any) => x.id)).toEqual([c.id]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0])).not.toContain("SECRET");
+    warn.mockRestore();
+    const got = await request(app).get("/api/compares/bad-json");
+    expect(got.status).toBe(404);
+    expect(JSON.stringify(got.body)).not.toContain("SECRET");
+    expect((await request(app).get("/api/compares/bad-shape")).status).toBe(404);
   });
 
   it("DELETE removes a compare", async () => {

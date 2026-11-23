@@ -1,8 +1,8 @@
 import { z } from "zod";
 import type { AppContext } from "../context.js";
 import { HttpError } from "../errors.js";
-import { rasterizeToPng } from "../image/raster.js";
-import { NotFoundError } from "../projects.js";
+import { imageForModel } from "../image/raster.js";
+import { NotFoundError, type ProjectVersion } from "../projects.js";
 import { DIMENSIONS, reviewSchema, type ReviewResult } from "../review/schema.js";
 import { REVIEW_SYSTEM, fenceBrief } from "../review/prompts.js";
 import { MAX_BRIEF_CHARS } from "../review/review.js";
@@ -79,11 +79,14 @@ export async function createCompare(
     throw new HttpError(422, "Each concept must be a different project");
   }
 
-  // Resolve every project to its latest version now (404 for unknown) and pin the versionId.
-  const resolved = [];
+  // Resolve every project to its latest version metadata now (404 for unknown) and pin the versionId.
+  // Image bytes are read only inside run(), so concurrent duplicates don't each read every file.
+  const resolved: Resolved[] = [];
   for (const { projectId } of reqItems) {
-    const { meta, bytes } = await ctx.projects.latestVersion(ctx, projectId);
-    resolved.push({ projectId, meta, bytes });
+    const project = await ctx.projects.get(ctx, projectId);
+    const meta = project.versions[project.versions.length - 1];
+    if (!meta) throw new NotFoundError("Project has no versions");
+    resolved.push({ projectId, meta });
   }
   const items = resolved.map((r) => ({ projectId: r.projectId, versionId: r.meta.id }));
 
@@ -99,21 +102,19 @@ export async function createCompare(
   }
 }
 
+type Resolved = { projectId: string; meta: ProjectVersion };
+
 async function run(
   ctx: AppContext,
-  resolved: { projectId: string; meta: { mime: string }; bytes: Buffer }[],
+  resolved: Resolved[],
   items: Compare["items"],
   brief: string,
 ): Promise<Compare> {
   const provider = await ctx.getProvider();
   const labels = LABELS.slice(0, resolved.length);
-  // Models can't read SVG: send PNG renderings. All images go in one call, in label order.
+  // All images go in one call, in label order, each normalized/downscaled to PNG.
   const images = await Promise.all(
-    resolved.map(async (r) =>
-      r.meta.mime === "image/svg+xml"
-        ? { mime: "image/png", bytes: await rasterizeToPng(r.bytes, r.meta.mime) }
-        : { mime: r.meta.mime, bytes: r.bytes },
-    ),
+    resolved.map(async (r) => imageForModel(await ctx.store.readFile(`projects/${r.projectId}/${r.meta.file}`), r.meta.mime)),
   );
   const out = await provider.generateJson({
     system: COMPARE_SYSTEM,
@@ -146,17 +147,42 @@ async function run(
   return compare;
 }
 
+const storedSchema = z.object({
+  id: z.string(),
+  createdAt: z.string(),
+  brief: z.string(),
+  items: z.array(z.object({ projectId: z.string(), versionId: z.string() })).min(1),
+  result: z.object({
+    scores: z.record(z.string(), z.unknown()),
+    recommendation: z.object({ winnerProjectId: z.string(), reason: z.string() }),
+    notes: z.array(z.string()),
+    totals: z.record(z.string(), z.number()),
+  }).passthrough(),
+});
+
+/** Read + validate one stored compare; null when missing, corrupt or wrong-shaped (never throws on bad content). */
+async function readCompare(ctx: AppContext, file: string): Promise<Compare | null> {
+  try {
+    const raw = await ctx.store.readJson<unknown>(`compares/${file}`);
+    const ok = storedSchema.safeParse(raw);
+    return ok.success ? (ok.data as unknown as Compare) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Unreadable/corrupt records are reported as 404 (same as unknown). */
 export async function getCompare(ctx: AppContext, id: string): Promise<Compare> {
-  const c = ID_RE.test(id) ? await ctx.store.readJson<Compare>(path(id)) : null;
+  const c = ID_RE.test(id) ? await readCompare(ctx, `${id}.json`) : null;
   if (!c) throw new NotFoundError("Compare not found");
   return c;
 }
 
 export async function listCompares(ctx: AppContext): Promise<CompareSummary[]> {
-  const files = await ctx.store.list("compares");
-  const all = await Promise.all(
-    files.filter((f) => f.endsWith(".json")).map((f) => ctx.store.readJson<Compare>(`compares/${f}`)),
-  );
+  const files = (await ctx.store.list("compares")).filter((f) => f.endsWith(".json"));
+  const all = await Promise.all(files.map((f) => readCompare(ctx, f)));
+  const skipped = all.filter((c) => !c).length;
+  if (skipped) console.warn(`compares: skipped ${skipped} unreadable record(s)`);
   return all
     .filter((c): c is Compare => !!c)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))

@@ -197,3 +197,29 @@ describe("review routes", () => {
     expect((await request(app).post(`/api/projects/${pid}/review`).send({ brief: 5 })).status).toBe(422);
   });
 });
+
+describe("image sent to the model", () => {
+  it("downscales a large raster to fit 1024 and stays PNG", async () => {
+    const big = await sharp({ create: { width: 3000, height: 3000, channels: 3, background: { r: 1, g: 2, b: 3 } } }).png().toBuffer();
+    const p = (await ctx.projects.create(ctx, "big", { buffer: big, originalName: "big.png" })).id;
+    provider.enqueue(good());
+    await reviewLogo(ctx, p, {});
+    const img = provider.calls[0].images[0];
+    expect(img.mime).toBe("image/png");
+    const meta = await sharp(img.bytes).metadata();
+    expect(meta.width).toBe(1024);
+    expect(meta.height).toBe(1024);
+  });
+
+  it("applies EXIF orientation (dimensions swapped)", async () => {
+    const jpg = await sharp({ create: { width: 40, height: 20, channels: 3, background: { r: 9, g: 9, b: 9 } } })
+      .jpeg()
+      .withMetadata({ orientation: 6 })
+      .toBuffer();
+    const p = (await ctx.projects.create(ctx, "rot", { buffer: jpg, originalName: "r.jpg" })).id;
+    provider.enqueue(good());
+    await reviewLogo(ctx, p, {});
+    const meta = await sharp(provider.calls[0].images[0].bytes).metadata();
+    expect([meta.width, meta.height]).toEqual([20, 40]);
+  });
+});

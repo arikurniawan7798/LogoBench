@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { rasterizeToPng } from "../image/raster.js";
+import { imageForModel } from "../image/raster.js";
 import type { AppContext } from "../context.js";
 import { cacheKey, readReview, writeReview, type ReviewKind } from "./cache.js";
 import { PROMPT_VERSION, REVIEW_SYSTEM, reviewPrompt } from "./prompts.js";
@@ -52,11 +52,8 @@ export async function runCachedReview<T>(
   const running = inflight.get(flightKey) as Promise<T> | undefined;
   if (running) return { result: await running, cached: false };
   const p = (async () => {
-    // Models can't read SVG: send a PNG rendering instead.
-    const image =
-      meta.mime === "image/svg+xml"
-        ? { mime: "image/png", bytes: await rasterizeToPng(bytes, meta.mime) }
-        : { mime: meta.mime, bytes };
+    // Models get a normalized, downscaled PNG (SVG rasterized, EXIF applied); the cache key still uses the original bytes.
+    const image = await imageForModel(bytes, meta.mime);
     const result = await provider.generateJson({ system: cfg.system, prompt: cfg.prompt(brief), images: [image], schema: cfg.schema });
     await writeReview(ctx, projectId, { key, result, createdAt: new Date().toISOString() }, cfg.kind);
     return result;
