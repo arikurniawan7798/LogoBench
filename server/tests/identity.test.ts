@@ -11,6 +11,7 @@ import { downloadFont, type FontFetcher } from "../src/identity/fonts.js";
 import { escapeHtml } from "../src/identity/page.js";
 import { writeReview } from "../src/review/cache.js";
 import { MOCKUP_KINDS } from "../src/mockups/render.js";
+import { FOOTER_TEXT } from "../src/framing.js";
 
 const SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="#FF0000"/></svg>`;
 const WOFF2 = Buffer.concat([Buffer.from("wOF2", "latin1"), Buffer.alloc(60, 1)]);
@@ -185,6 +186,30 @@ describe("identity zip", () => {
     expect(html).toContain("Nice &lt;script&gt;");
     // Zip entry names never derive from the project name.
     expect(Object.keys(files).some((n) => n.includes("..") || n.includes("evil"))).toBe(false);
+  });
+
+  it("frames the AI scores as feedback: a caption under the review heading reuses the app's footer text", async () => {
+    const { fetcher } = fakeFonts();
+    ctx = createApp({ hostCheck: false, dataDir: dir, fontFetcher: fetcher }).locals.ctx;
+    const id = await mk("Acme");
+    const dim = { score: 8, reason: "Clear." };
+    await writeReview(ctx, id, {
+      key: "k",
+      createdAt: new Date().toISOString(),
+      result: {
+        scores: { readability: dim, originality: dim, balance: dim, scalability: dim, misinterpretation: dim },
+        personality: { presence: "p", attitude: "a", formality: "f", style: "s", tone: "t", positioning: "p" },
+        summary: "Solid.",
+      },
+    });
+    const html = strFromU8(entries((await buildIdentityZip(ctx, id)).zip)["index.html"]);
+    const section = html.slice(html.indexOf("<h2>Logo review</h2>"));
+    const caption = `<p class="caption">${escapeHtml(FOOTER_TEXT)}</p>`;
+    expect(section.startsWith("<h2>Logo review</h2>")).toBe(true);
+    expect(section.slice("<h2>Logo review</h2>".length).trimStart().startsWith(caption)).toBe(true);
+    expect(section.indexOf(caption)).toBeLessThan(section.indexOf('<table class="scores">'));
+    expect(FOOTER_TEXT).toMatch(/not a final judgment/);
+    expect(html).not.toMatch(REMOTE);
   });
 
   it("raster logos are bundled with their own extension", async () => {

@@ -2,6 +2,7 @@ import PDFDocument from "pdfkit";
 import { rasterizeToPng } from "../image/raster.js";
 import type { Project } from "../projects.js";
 import type { AdvancedReview } from "../review/schema.js";
+import { FOOTER_TEXT } from "../framing.js";
 
 // Built-in Helvetica only (WinAnsi): nothing is bundled. Glyphs outside Latin-1 plus a few typographic
 // punctuation marks are replaced with "?" so non-Latin model text can never crash or garble the build.
@@ -29,7 +30,7 @@ const LABELS: Record<string, string> = {
 };
 const PRIORITY_COLOR = { high: "#b3261e", medium: "#a15c00", low: "#2e7d32" } as const;
 
-export const FOOTER_TEXT = "AI feedback to support your design process, not a final judgment.";
+export { FOOTER_TEXT };
 
 export async function buildReportPdf(
   project: Project,

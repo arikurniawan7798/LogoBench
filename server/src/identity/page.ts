@@ -3,6 +3,7 @@ import type { BrandPalette, Swatch } from "../colors/roles.js";
 import { DIMENSIONS, type ReviewResult } from "../review/schema.js";
 import { SIZE_RE, loadFonts, type TypeSystem } from "../type/pairings.js";
 import { FAMILY_RE } from "./fonts.js";
+import { FOOTER_TEXT } from "../framing.js";
 
 /**
  * HTML-escape text for element content and quoted attributes. '/' is escaped too, so no text (project name,
@@ -92,6 +93,7 @@ function reviewSection(review: ReviewResult | undefined): string {
     .join("");
   return `<section>
   <h2>Logo review</h2>
+  <p class="caption">${escapeHtml(FOOTER_TEXT)}</p>
   <p>${escapeHtml(review.summary)}</p>
   ${personality ? `<ul class="personality">${personality}</ul>` : ""}
   <table class="scores">${rows}</table>
@@ -144,7 +146,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 48px 20px 64px; }
 h1, h2, h3 { font-family: ${familyStack(type.heading)}; line-height: 1.15; margin: 0 0 .5em; }
 h1 { font-size: ${size(web.h1, "2rem")}; }
 h2 { font-size: ${size(web.h2, "1.5rem")}; border-top: 4px solid var(--main); padding-top: 18px; margin-top: 56px; }
-small, .role, figcaption { font-size: ${size(web.small, "0.8rem")}; color: var(--muted); }
+small, .role, figcaption, .caption { font-size: ${size(web.small, "0.8rem")}; color: var(--muted); }
 header { display: flex; flex-wrap: wrap; align-items: center; gap: 32px; }
 header .logo { width: 220px; max-width: 100%; height: 160px; object-fit: contain; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 16px; }
