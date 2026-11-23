@@ -5,6 +5,7 @@ import { createProvider, type Provider } from "./ai/provider.js";
 import type { AppContext } from "./context.js";
 import { projectService } from "./projects.js";
 import { projectsRouter } from "./routes/projects.js";
+import { reviewRouter } from "./routes/review.js";
 import { settingsRouter } from "./routes/settings.js";
 import { loadSettings } from "./settings.js";
 import { errorHandler } from "./errors.js";
@@ -25,6 +26,7 @@ export function createApp(deps: { dataDir?: string; provider?: Provider } = {}) 
     res.json({ ok: true });
   });
   app.use("/api/projects", projectsRouter(ctx));
+  app.use("/api/projects/:id/review", reviewRouter(ctx));
   app.use("/api/settings", settingsRouter(ctx));
   app.use(errorHandler);
   return app;
