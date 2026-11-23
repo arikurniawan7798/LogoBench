@@ -9,6 +9,7 @@ import { reviewRouter } from "./routes/review.js";
 import { advancedRouter } from "./routes/advanced.js";
 import { formsRouter, projectBriefRouter } from "./routes/forms.js";
 import { colorsRouter } from "./routes/colors.js";
+import { typeRouter } from "./routes/type.js";
 import { settingsRouter } from "./routes/settings.js";
 import { loadSettings } from "./settings.js";
 import { errorHandler } from "./errors.js";
@@ -31,6 +32,7 @@ export function createApp(deps: { dataDir?: string; provider?: Provider } = {}) 
   app.use("/api/projects", projectsRouter(ctx));
   app.use("/api/projects/:id/review", reviewRouter(ctx));
   app.use("/api/projects/:id/colors", colorsRouter(ctx));
+  app.use("/api/projects/:id/type", typeRouter(ctx));
   app.use("/api/projects/:id", projectBriefRouter(ctx));
   app.use("/api/projects/:id", advancedRouter(ctx));
   app.use("/api/forms", formsRouter(ctx));
