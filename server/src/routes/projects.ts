@@ -2,14 +2,13 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import multer from "multer";
 import type { AppContext } from "../context.js";
 
-export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-
-/** Single-file multipart parser for field `logo`, memory storage, 10MB cap (413 via the error handler). */
-export const logoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } }).single("logo");
+/** Single-file multipart parser for field `logo`, memory storage, capped at ctx.limits.uploadBytes (413 via the error handler). */
+export const logoUpload = (ctx: AppContext) =>
+  multer({ storage: multer.memoryStorage(), limits: { fileSize: ctx.limits.uploadBytes, files: 1 } }).single("logo");
 
 export function projectsRouter(ctx: AppContext): Router {
   const r = Router();
-  const upload = logoUpload;
+  const upload = logoUpload(ctx);
   const handle = (fn: (req: Request, res: Response) => Promise<void>) => (req: Request, res: Response, next: NextFunction) =>
     fn(req, res).catch(next);
   const fileOf = (req: Request) => {

@@ -16,8 +16,9 @@ import { compareRouter } from "./routes/compare.js";
 import { settingsRouter } from "./routes/settings.js";
 import { loadSettings } from "./settings.js";
 import { errorHandler } from "./errors.js";
+import { MAX_UPLOAD_BYTES, MAX_JSON_BYTES } from "./limits.js";
 
-export function createApp(deps: { dataDir?: string; provider?: Provider } = {}) {
+export function createApp(deps: { dataDir?: string; provider?: Provider; limits?: { uploadBytes?: number; jsonBytes?: number } } = {}) {
   const store = new Store(deps.dataDir ?? loadConfig().dataDir);
   const ctx: AppContext = {
     store,
@@ -25,9 +26,10 @@ export function createApp(deps: { dataDir?: string; provider?: Provider } = {}) 
     // With no key the Gemini adapter throws AiError NO_KEY before any network call.
     getProvider: async () => deps.provider ?? createProvider(await loadSettings(store)),
     projects: projectService,
+    limits: { uploadBytes: deps.limits?.uploadBytes ?? MAX_UPLOAD_BYTES, jsonBytes: deps.limits?.jsonBytes ?? MAX_JSON_BYTES },
   };
   const app = express();
-  app.use(express.json({ limit: "10mb" }));
+  app.use(express.json({ limit: ctx.limits.jsonBytes }));
   app.locals.ctx = ctx;
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true });

@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createApp } from "../src/app.js";
+import { MAX_UPLOAD_BYTES, MAX_JSON_BYTES } from "../src/limits.js";
 
 const PNG = Buffer.concat([
   Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
@@ -42,10 +43,17 @@ describe("projects api", () => {
     expect(res.status).toBe(415);
   });
 
-  it("rejects >10MB with 413", async () => {
-    const big = Buffer.concat([PNG, Buffer.alloc(10 * 1024 * 1024 + 1)]);
-    const res = await request(app).post("/api/projects").attach("logo", big, "big.png");
+  it("rejects an upload over the configured cap with 413 (tiny injected limit, small body)", async () => {
+    const small = createApp({ dataDir: dir, limits: { uploadBytes: 2048 } });
+    const big = Buffer.concat([PNG, Buffer.alloc(2048)]);
+    const res = await request(small).post("/api/projects").attach("logo", big, "big.png");
     expect(res.status).toBe(413);
+  });
+
+  it("production defaults are 10 MB upload / 10 MB JSON and createApp() uses them", () => {
+    expect(MAX_UPLOAD_BYTES).toBe(10 * 1024 * 1024);
+    expect(MAX_JSON_BYTES).toBe(10 * 1024 * 1024);
+    expect(app.locals.ctx.limits).toEqual({ uploadBytes: MAX_UPLOAD_BYTES, jsonBytes: MAX_JSON_BYTES });
   });
 
   it("rejects missing file with 400", async () => {

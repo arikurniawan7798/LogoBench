@@ -223,11 +223,12 @@ describe("tools routes", () => {
     expect(bad.status).toBe(422);
   });
   it("reject non-images with 415 and oversized with 413", async () => {
+    const small = createApp({ dataDir: dir, limits: { uploadBytes: 2048 } });
     for (const url of ["/api/tools/favicons", "/api/tools/background"]) {
-      const q = () => request(app).post(url).field("width", "64").field("height", "64").field("color", "#000000");
+      const q = () => request(small).post(url).field("width", "64").field("height", "64").field("color", "#000000");
       expect((await q().attach("logo", Buffer.from("GIF89a....."), "a.gif")).status).toBe(415);
       expect((await q().attach("logo", Buffer.from("hello"), "a.png")).status).toBe(415);
-      expect((await q().attach("logo", Buffer.alloc(10 * 1024 * 1024 + 1024), "a.png")).status).toBe(413);
+      expect((await q().attach("logo", Buffer.alloc(4096), "a.png")).status).toBe(413);
     }
   });
 });

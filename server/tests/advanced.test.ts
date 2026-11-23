@@ -103,7 +103,7 @@ describe("buildReportPdf", () => {
     const a = await buildReportPdf(project(), adv(), logo(png, "image/png"), o);
     expect(pageTexts(a).join("")).toContain("2020-02-03");
     const b = await buildReportPdf(project(), adv(), logo(png, "image/png"), o);
-    const strip = (x: Buffer) => x.toString("latin1").replace(/\/(CreationDate|ModDate) \([^)]*\)/g, "").replace(/\/ID \[[^\]]*\]/, "");
+    const strip = (x: Buffer) => x.toString("latin1").replace(/\/(CreationDate|ModDate) \([^)]*\)/g, "").replace(/\(D:\d{14}Z?\)/g, "()").replace(/\/ID \[[^\]]*\]/, "");
     expect(strip(a)).toBe(strip(b));
   });
 

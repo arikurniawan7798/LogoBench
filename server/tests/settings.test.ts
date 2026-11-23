@@ -1,4 +1,4 @@
-import { it, expect, beforeEach, afterEach } from "vitest";
+import { it, expect, beforeEach, afterEach, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 import fs from "node:fs";
@@ -110,6 +110,7 @@ it("maps other AiError codes", async () => {
 });
 
 it("corrupt settings.json: GET returns defaults, PUT overwrites it", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
   fs.writeFileSync(path.join(dir, "settings.json"), '{"provider": "oll');
   const app = createApp({ dataDir: dir });
   const get = await request(app).get("/api/settings");
@@ -117,6 +118,8 @@ it("corrupt settings.json: GET returns defaults, PUT overwrites it", async () =>
   expect(get.body.provider).toBe("gemini");
   await request(app).put("/api/settings").send(body).expect(200);
   expect(JSON.parse(fs.readFileSync(path.join(dir, "settings.json"), "utf8")).provider).toBe("ollama");
+  expect(warn).toHaveBeenCalled();
+  warn.mockRestore();
 });
 
 it("invalid hand-edited fields fall back to defaults", async () => {
@@ -134,8 +137,8 @@ it("saved key beats env key", async () => {
 });
 
 it("non-AI errors through the central handler", async () => {
-  const app = createApp({ dataDir: dir });
-  const big = await request(app).put("/api/settings").set("Content-Type", "application/json").send(JSON.stringify({ x: "a".repeat(11 * 1024 * 1024) }));
+  const app = createApp({ dataDir: dir, limits: { jsonBytes: 1024 } });
+  const big = await request(app).put("/api/settings").set("Content-Type", "application/json").send(JSON.stringify({ x: "a".repeat(4096) }));
   expect(big.status).toBe(413);
   expect(big.body).toEqual({ error: "Request body too large" });
   const cs = await request(app).put("/api/settings").set("Content-Type", "application/json; charset=iso-8859-1").send("{}");
@@ -145,5 +148,8 @@ it("non-AI errors through the central handler", async () => {
   expect(bad.body).toEqual({ error: "Invalid JSON body" });
   expect(JSON.stringify(bad.body)).not.toContain("FAKE-SECRET");
   expect((await request(app).get("/api/projects/nope")).status).toBe(404);
+  const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   expect((await request(appThrowing(new Error("secret detail"))).get("/boom")).body).toEqual({ error: "Internal error" });
+  expect(errSpy).toHaveBeenCalled();
+  errSpy.mockRestore();
 });

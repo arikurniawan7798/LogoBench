@@ -28,7 +28,7 @@ export function exportRouter(ctx: AppContext): Router {
     res.end(zip);
   }));
 
-  r.post("/tools/favicons", logoUpload, handle(async (req, res) => {
+  r.post("/tools/favicons", logoUpload(ctx), handle(async (req, res) => {
     if (!req.file) throw new HttpError(400, "Missing file field 'logo'");
     const { mime, bytes } = prepareImage(req.file.buffer);
     const files: Record<string, Uint8Array> = {};
@@ -40,7 +40,7 @@ export function exportRouter(ctx: AppContext): Router {
     res.end(zip);
   }));
 
-  r.post("/tools/background", logoUpload, handle(async (req, res) => {
+  r.post("/tools/background", logoUpload(ctx), handle(async (req, res) => {
     const b = (req.body ?? {}) as Record<string, unknown>;
     const logo = req.file ? prepareImage(req.file.buffer) : undefined;
     const png = await makeBackground({ width: asInt(b.width), height: asInt(b.height), color: String(b.color ?? ""), logo });
