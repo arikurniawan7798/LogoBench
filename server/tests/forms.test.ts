@@ -165,10 +165,32 @@ describe("combined brief", () => {
   });
 
   it("empty by default; PUT validates", async () => {
-    expect((await request(app).get(`/api/projects/${pid}/brief`)).body).toEqual({ text: "" });
+    expect((await request(app).get(`/api/projects/${pid}/brief`)).body).toEqual({ text: "", free: "" });
     expect((await request(app).put(`/api/projects/${pid}/brief`).send({ text: "x".repeat(MAX_BRIEF_CHARS + 1) })).status).toBe(422);
     expect((await request(app).put(`/api/projects/${pid}/brief`).send({})).status).toBe(422);
     expect((await request(app).put(`/api/projects/missing/brief`).send({ text: "a" })).status).toBe(404);
+  });
+
+  it("GET/PUT /brief also return the stored free text alone (free), even with Form: lines, forms and truncation", async () => {
+    const free = "We sell anvils.\nForm: Foo\n- not a real form line";
+    const put = await request(app).put(`/api/projects/${pid}/brief`).send({ text: free });
+    expect(put.status).toBe(200);
+    expect(put.body.free).toBe(free);
+    expect(put.body.text).toBe(free.trim());
+
+    const t = await mkTemplate();
+    await fill(t.id, { q1: "Acme" });
+    await fill(t.id, { q1: "   " }); // only blank answers: no block for this form in the combined text
+    let r = await request(app).get(`/api/projects/${pid}/brief`);
+    expect(r.body.free).toBe(free);
+    expect(r.body.text).toContain("Form: Intake");
+    expect(r.body.text).toContain("Acme");
+
+    for (let i = 0; i < 6; i++) await fill(t.id, { q2: `${i}`.repeat(1900) });
+    r = await request(app).get(`/api/projects/${pid}/brief`);
+    expect(r.body.text.endsWith("[truncated]")).toBe(true);
+    expect(r.body.free).toBe(free);
+    expect(r.body.free).not.toContain("[truncated]");
   });
 
   it("truncates the combined brief at a form-answer boundary with a marker", async () => {

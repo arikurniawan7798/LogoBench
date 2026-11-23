@@ -120,6 +120,8 @@ export type FilledForm = {
   snapshot?: Omit<FormTemplate, "createdAt">;
   createdAt?: string;
 };
+/** GET/PUT /brief: `text` is the combined brief the model reads (free text + filled forms, possibly truncated); `free` is the stored free text alone. */
+export type BriefResponse = { text: string; free: string };
 /** Free-text brief cap (server MAX_BRIEF_CHARS). */
 export const MAX_BRIEF_CHARS = 2000;
 
@@ -265,9 +267,9 @@ export const api = {
   // ---- advanced review + brief ----
   runAdvancedReview: (id: string, opts: { force?: boolean } = {}) =>
     request<AdvancedResponse>(`/api/projects/${enc(id)}/advanced-review`, json("POST", opts.force ? { force: true } : {})),
-  getBrief: (id: string) => request<{ text: string }>(`/api/projects/${enc(id)}/brief`),
-  /** Saves the free-text part; the response is the combined brief (free text + filled forms). */
-  saveBrief: (id: string, text: string) => request<{ text: string }>(`/api/projects/${enc(id)}/brief`, json("PUT", { text })),
+  getBrief: (id: string) => request<BriefResponse>(`/api/projects/${enc(id)}/brief`),
+  /** Saves the free-text part. */
+  saveBrief: (id: string, text: string) => request<BriefResponse>(`/api/projects/${enc(id)}/brief`, json("PUT", { text })),
   listFilledForms: (id: string) => request<FilledForm[]>(`/api/projects/${enc(id)}/forms`),
   fillForm: (id: string, templateId: string, answers: Record<string, string>) =>
     request<FilledForm>(`/api/projects/${enc(id)}/forms`, json("POST", { templateId, answers })),

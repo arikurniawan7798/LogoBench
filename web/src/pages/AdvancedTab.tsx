@@ -149,20 +149,6 @@ function AdvancedResultView({ projectId, r }: { projectId: string; r: AdvancedRe
   );
 }
 
-/**
- * GET/PUT /brief answer with the COMBINED brief (free text, then one "Form: <title>" block per filled form).
- * The free-text part is everything before the first filled form's header line.
- */
-function freeTextOf(combined: string, filled: FilledForm[]): string {
-  const oneLine = (s: string) => s.replace(/\s+/g, " ").trim();
-  const firstAnswered = filled.find((f) => f.snapshot && Object.values(f.answers).some((a) => a.trim()));
-  if (!firstAnswered?.snapshot) return combined;
-  const header = `Form: ${oneLine(firstAnswered.snapshot.title)}`;
-  if (combined.startsWith(`${header}\n`) || combined === header) return "";
-  const at = combined.indexOf(`\n${header}\n`);
-  return at >= 0 ? combined.slice(0, at) : combined;
-}
-
 function BriefPanel({ projectId }: { projectId: string }) {
   const [combined, setCombined] = useState<string | null>(null);
   const [free, setFree] = useState("");
@@ -182,7 +168,7 @@ function BriefPanel({ projectId }: { projectId: string }) {
         if (!live) return;
         setCombined(b.text);
         setFilled(f);
-        setFree(freeTextOf(b.text, f));
+        setFree(b.free);
         setTemplates(t);
       },
       (e) => {
@@ -204,6 +190,7 @@ function BriefPanel({ projectId }: { projectId: string }) {
     try {
       const r = await api.saveBrief(projectId, free);
       setCombined(r.text);
+      setFree(r.free);
       setNotice("Brief saved.");
     } catch (err) {
       setError(toApiError(err));

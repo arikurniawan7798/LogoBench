@@ -24,10 +24,12 @@ export function projectBriefRouter(ctx: AppContext): Router {
   const r = Router({ mergeParams: true });
   r.post("/forms", wrap(async (req, res) => void res.status(201).json(await formService.fill(ctx, req.params.id as string, req.body ?? {}))));
   r.get("/forms", wrap(async (req, res) => void res.json(await formService.listFilled(ctx, req.params.id as string))));
-  r.get("/brief", wrap(async (req, res) => void res.json({ text: await combinedBrief(ctx, req.params.id as string) })));
+  // `text` is the combined brief (free text + filled forms) used by prompts; `free` is the stored free text alone, for editing.
+  const briefBody = async (id: string) => ({ text: await combinedBrief(ctx, id), free: await formService.getBriefText(ctx, id) });
+  r.get("/brief", wrap(async (req, res) => void res.json(await briefBody(req.params.id as string))));
   r.put("/brief", wrap(async (req, res) => {
     await formService.setBriefText(ctx, req.params.id as string, req.body ?? {});
-    res.json({ text: await combinedBrief(ctx, req.params.id as string) });
+    res.json(await briefBody(req.params.id as string));
   }));
   return r;
 }

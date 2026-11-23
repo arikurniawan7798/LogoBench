@@ -6,6 +6,7 @@ import ExportTab from "../pages/ExportTab";
 import IdentityTab from "../pages/IdentityTab";
 import ComparePage from "../pages/ComparePage";
 import FormsPage from "../pages/FormsPage";
+import AdvancedTab from "../pages/AdvancedTab";
 import type { Project } from "../api";
 
 type Reply = { status: number; body: unknown; headers?: Record<string, string> } | Response;
@@ -362,5 +363,33 @@ describe("FormsPage", () => {
         { text: "Preferred style?", type: "choice", options: ["Classic", "Playful"] },
       ],
     });
+  });
+});
+
+describe("AdvancedTab brief", () => {
+  it("edits the stored free text (not the combined brief) and saves exactly that text", async () => {
+    const free = "We sell anvils.\nForm: Foo\nTone: dry humour";
+    const combined = `${free}\nForm: Intake\n- Company name?: Acme\n[truncated]`;
+    const fetchMock = mockFetch({
+      "GET /api/projects/p1/brief": () => ({ status: 200, body: { text: combined, free } }),
+      "GET /api/projects/p1/forms": () => ({ status: 200, body: [] }),
+      "GET /api/forms": () => ({ status: 200, body: [] }),
+      "PUT /api/projects/p1/brief": (init) => {
+        const sent = JSON.parse(String(init?.body));
+        return { status: 200, body: { text: sent.text, free: sent.text } };
+      },
+    });
+    const user = userEvent.setup();
+    render(<AdvancedTab projectId="p1" />);
+
+    const textarea = await screen.findByLabelText(/notes about the client/i);
+    expect(textarea).toHaveValue(free);
+
+    await user.click(screen.getByRole("button", { name: /save brief/i }));
+    expect(await screen.findByText("Brief saved.")).toBeInTheDocument();
+    const puts = callsTo(fetchMock, "PUT", "/api/projects/p1/brief");
+    expect(puts).toHaveLength(1);
+    expect(JSON.parse(String(puts[0][1]?.body))).toEqual({ text: free });
+    expect(textarea).toHaveValue(free);
   });
 });
