@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import express from "express";
-import request from "supertest";
+import { request } from "./helpers/request.js";
 import sharp from "sharp";
 import { rasterizeToPng } from "../src/image/raster.js";
 import { HttpError, errorHandler } from "../src/errors.js";

@@ -1,5 +1,5 @@
 import { it, expect } from "vitest";
-import request from "supertest";
+import { request } from "./helpers/request.js";
 import { createApp } from "../src/app.js";
 
 it("GET /api/health returns ok", async () => {

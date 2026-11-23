@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import request from "supertest";
+import { request } from "./helpers/request.js";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";

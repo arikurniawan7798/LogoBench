@@ -1,6 +1,6 @@
 import { it, expect, beforeEach, afterEach, vi } from "vitest";
 import express from "express";
-import request from "supertest";
+import { request } from "./helpers/request.js";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -17,6 +17,7 @@ beforeEach(() => {
   delete process.env.GEMINI_API_KEY;
 });
 afterEach(() => {
+  vi.restoreAllMocks();
   fs.rmSync(dir, { recursive: true, force: true });
   if (savedEnv === undefined) delete process.env.GEMINI_API_KEY;
   else process.env.GEMINI_API_KEY = savedEnv;
@@ -119,7 +120,6 @@ it("corrupt settings.json: GET returns defaults, PUT overwrites it", async () =>
   await request(app).put("/api/settings").send(body).expect(200);
   expect(JSON.parse(fs.readFileSync(path.join(dir, "settings.json"), "utf8")).provider).toBe("ollama");
   expect(warn).toHaveBeenCalled();
-  warn.mockRestore();
 });
 
 it("invalid hand-edited fields fall back to defaults", async () => {
@@ -151,5 +151,21 @@ it("non-AI errors through the central handler", async () => {
   const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   expect((await request(appThrowing(new Error("secret detail"))).get("/boom")).body).toEqual({ error: "Internal error" });
   expect(errSpy).toHaveBeenCalled();
-  errSpy.mockRestore();
+});
+
+it("JSON body limit: just under is accepted, just over is 413", async () => {
+  const limit = 1024;
+  const app = createApp({ dataDir: dir, limits: { jsonBytes: limit } });
+  // Pad a valid settings body (unknown keys are ignored) to an exact byte length.
+  const sized = (bytes: number) => {
+    const base = JSON.stringify({ ...body, pad: "" });
+    const out = JSON.stringify({ ...body, pad: "a".repeat(bytes - Buffer.byteLength(base)) });
+    expect(Buffer.byteLength(out)).toBe(bytes);
+    return out;
+  };
+  const put = (raw: string) => request(app).put("/api/settings").set("Content-Type", "application/json").send(raw);
+  expect((await put(sized(limit - 1))).status).toBe(200);
+  const over = await put(sized(limit + 1));
+  expect(over.status).toBe(413);
+  expect(over.body).toEqual({ error: "Request body too large" });
 });
