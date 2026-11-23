@@ -26,6 +26,9 @@ export default function ComparePage() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<Compare | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
+  const [briefFrom, setBriefFrom] = useState("");
+  const [briefNote, setBriefNote] = useState("");
+  const [loadingBrief, setLoadingBrief] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -80,6 +83,36 @@ export default function ComparePage() {
       setError(toApiError(err));
     } finally {
       setRunning(false);
+    }
+  }
+
+  /** Loads a project's combined brief (its free text plus filled client forms) into the textarea, capped at MAX_BRIEF_CHARS. */
+  async function loadProjectBrief(projectId: string) {
+    setBriefFrom(projectId);
+    if (!projectId || loadingBrief) return;
+    setLoadingBrief(true);
+    setError(null);
+    setBriefNote("");
+    const name = nameOf(projectId);
+    try {
+      const { text } = await api.getBrief(projectId);
+      const trimmed = text.trim();
+      if (!trimmed) {
+        setBriefNote(`${name} has no brief yet. Add one in its Advanced tab or fill a client form.`);
+      } else if (trimmed.length > MAX_BRIEF_CHARS) {
+        setBrief(trimmed.slice(0, MAX_BRIEF_CHARS));
+        setBriefNote(
+          `Loaded the brief from ${name}. It was ${trimmed.length} characters, so it was trimmed to ${MAX_BRIEF_CHARS} characters; edit it down if the end matters.`,
+        );
+      } else {
+        setBrief(trimmed);
+        setBriefNote(`Loaded the brief from ${name}. Edit it freely; the project's own brief is not changed.`);
+      }
+    } catch (err) {
+      setError(toApiError(err));
+    } finally {
+      setLoadingBrief(false);
+      setBriefFrom("");
     }
   }
 
@@ -168,7 +201,33 @@ export default function ComparePage() {
               onChange={(e) => setBrief(e.target.value)}
               placeholder="Who is it for, and what should it say?"
             />
-            <span className="muted small">Only this brief is used here; project briefs are not merged in.</span>
+            <span className="muted small">
+              Only this brief is used here. To start from a project&apos;s brief (its free text and filled client forms), load it below.
+            </span>
+            <div className="brief-from">
+              <label htmlFor="compare-brief-from" className="small">
+                Use brief from project…
+              </label>
+              <select
+                id="compare-brief-from"
+                value={briefFrom}
+                disabled={loadingBrief}
+                aria-busy={loadingBrief}
+                onChange={(e) => void loadProjectBrief(e.target.value)}
+              >
+                <option value="">Choose a project</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {briefNote && (
+              <p className="muted small" role="status">
+                {briefNote}
+              </p>
+            )}
           </div>
           <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={running} aria-busy={running}>

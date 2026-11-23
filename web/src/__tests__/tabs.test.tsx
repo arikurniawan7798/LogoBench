@@ -342,7 +342,7 @@ describe("ComparePage", () => {
 
     await user.click(screen.getByRole("checkbox", { name: "Bravo" }));
     await user.click(screen.getByRole("checkbox", { name: "Delta" }));
-    await user.type(screen.getByLabelText(/brief/i), "Coastal cafe, warm and modern");
+    await user.type(screen.getByLabelText(/^brief/i), "Coastal cafe, warm and modern");
     await user.click(submit);
 
     expect(await screen.findByText("Charlie reads best at small sizes.")).toBeInTheDocument();
@@ -353,6 +353,56 @@ describe("ComparePage", () => {
       brief: "Coastal cafe, warm and modern",
     });
     expect(screen.getByRole("heading", { name: /recommended: charlie/i })).toBeInTheDocument();
+  });
+});
+
+describe("ComparePage: use brief from project", () => {
+  it("loads a project's combined brief into the textarea, trims it to the cap with a visible note, and sends it", async () => {
+    const long = "Warm coastal cafe. ".repeat(150); // > 2000 chars
+    const fetchMock = mockFetch({
+      "GET /api/projects": () => ({ status: 200, body: projects }),
+      "GET /api/compares": () => ({ status: 200, body: [] }),
+      "GET /api/projects/p1/brief": () => ({ status: 200, body: { text: "Client form: coffee for commuters.", free: "" } }),
+      "GET /api/projects/p2/brief": () => ({ status: 200, body: { text: long, free: long } }),
+      "GET /api/projects/p3/brief": () => ({ status: 200, body: { text: "", free: "" } }),
+      "POST /api/compares": () => ({ status: 500, body: { error: "stop here" } }),
+    });
+    const user = userEvent.setup();
+    render(<ComparePage />);
+    const picker = await screen.findByRole("combobox", { name: /use brief from project/i });
+    const textarea = screen.getByLabelText(/^brief/i) as HTMLTextAreaElement;
+
+    await user.selectOptions(picker, "p1");
+    await waitFor(() => expect(textarea.value).toBe("Client form: coffee for commuters."));
+    expect(screen.getByText(/loaded the brief from alpha/i)).toBeInTheDocument();
+
+    await user.selectOptions(picker, "p2");
+    await waitFor(() => expect(textarea.value).toHaveLength(2000));
+    expect(textarea.value).toBe(long.slice(0, 2000));
+    expect(screen.getByText(/trimmed to 2000 characters/i)).toBeInTheDocument();
+
+    await user.selectOptions(picker, "p3");
+    expect(await screen.findByText(/charlie has no brief yet/i)).toBeInTheDocument();
+    expect(textarea.value).toHaveLength(2000); // unchanged
+
+    await user.click(screen.getByRole("checkbox", { name: "Alpha" }));
+    await user.click(screen.getByRole("checkbox", { name: "Bravo" }));
+    await user.click(screen.getByRole("button", { name: /^compare/i }));
+    await waitFor(() => expect(callsTo(fetchMock, "POST", "/api/compares")).toHaveLength(1));
+    const sent = JSON.parse(String(callsTo(fetchMock, "POST", "/api/compares")[0][1]?.body));
+    expect(sent.brief).toBe(long.slice(0, 2000).trim());
+  });
+
+  it("shows a load failure in the error banner", async () => {
+    mockFetch({
+      "GET /api/projects": () => ({ status: 200, body: projects }),
+      "GET /api/compares": () => ({ status: 200, body: [] }),
+      "GET /api/projects/p1/brief": () => ({ status: 404, body: { error: "Project not found" } }),
+    });
+    const user = userEvent.setup();
+    render(<ComparePage />);
+    await user.selectOptions(await screen.findByRole("combobox", { name: /use brief from project/i }), "p1");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Project not found");
   });
 });
 
