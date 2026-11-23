@@ -6,14 +6,17 @@ import { PROMPT_VERSION, REVIEW_SYSTEM, reviewPrompt } from "./prompts.js";
 import { reviewSchema, type ReviewResult } from "./schema.js";
 
 export { PROMPT_VERSION };
-export const MAX_BRIEF_CHARS = 2000;
+import { combinedBrief } from "../forms.js";
+
+/** MAX_BRIEF_CHARS caps the free-text brief field; MAX_COMBINED_BRIEF_CHARS (forms.ts) caps text + forms. */
+export { MAX_BRIEF_CHARS, MAX_COMBINED_BRIEF_CHARS } from "../forms.js";
 
 const inflight = new Map<string, Promise<unknown>>();
 export type { ReviewResult };
 
-/** Task 7 extends this to fall back to the project's saved brief. */
-export async function resolveBrief(_ctx: AppContext, _projectId: string, explicit?: string): Promise<string> {
-  return explicit ?? "";
+/** Explicit brief if given, else the project's saved combined brief (free text + filled forms), '' if none. Always fenced as data by the prompt builders. */
+export async function resolveBrief(ctx: AppContext, projectId: string, explicit?: string): Promise<string> {
+  return explicit ?? (await combinedBrief(ctx, projectId));
 }
 
 export type ReviewConfig<T> = {

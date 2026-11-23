@@ -7,6 +7,7 @@ import { projectService } from "./projects.js";
 import { projectsRouter } from "./routes/projects.js";
 import { reviewRouter } from "./routes/review.js";
 import { advancedRouter } from "./routes/advanced.js";
+import { formsRouter, projectBriefRouter } from "./routes/forms.js";
 import { settingsRouter } from "./routes/settings.js";
 import { loadSettings } from "./settings.js";
 import { errorHandler } from "./errors.js";
@@ -28,7 +29,9 @@ export function createApp(deps: { dataDir?: string; provider?: Provider } = {}) 
   });
   app.use("/api/projects", projectsRouter(ctx));
   app.use("/api/projects/:id/review", reviewRouter(ctx));
+  app.use("/api/projects/:id", projectBriefRouter(ctx));
   app.use("/api/projects/:id", advancedRouter(ctx));
+  app.use("/api/forms", formsRouter(ctx));
   app.use("/api/settings", settingsRouter(ctx));
   app.use(errorHandler);
   return app;

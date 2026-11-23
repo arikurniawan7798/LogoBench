@@ -48,6 +48,17 @@ export class Store {
     return fs.readFile(this.resolve(rel));
   }
 
+  /** Delete a file; returns false when it did not exist. */
+  async remove(rel: string): Promise<boolean> {
+    try {
+      await fs.unlink(this.resolve(rel));
+      return true;
+    } catch (e: any) {
+      if (e?.code === "ENOENT") return false;
+      throw e;
+    }
+  }
+
   async list(relDir: string): Promise<string[]> {
     try {
       return await fs.readdir(this.resolve(relDir));
