@@ -11,6 +11,7 @@ import { formsRouter, projectBriefRouter } from "./routes/forms.js";
 import { colorsRouter } from "./routes/colors.js";
 import { typeRouter } from "./routes/type.js";
 import { exportRouter } from "./routes/export.js";
+import { mockupsRouter } from "./routes/mockups.js";
 import { settingsRouter } from "./routes/settings.js";
 import { loadSettings } from "./settings.js";
 import { errorHandler } from "./errors.js";
@@ -37,6 +38,7 @@ export function createApp(deps: { dataDir?: string; provider?: Provider } = {}) 
   app.use("/api/projects/:id", projectBriefRouter(ctx));
   app.use("/api/projects/:id", advancedRouter(ctx));
   app.use("/api", exportRouter(ctx));
+  app.use("/api", mockupsRouter(ctx));
   app.use("/api/forms", formsRouter(ctx));
   app.use("/api/settings", settingsRouter(ctx));
   app.use(errorHandler);
