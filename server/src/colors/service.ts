@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AppContext } from "../context.js";
-import { rasterizeToPng } from "../image/raster.js";
+import { imageForModel } from "../image/raster.js";
 import { fenceBrief } from "../review/prompts.js";
 import { resolveBrief } from "../review/review.js";
 import { HEX_RE } from "./convert.js";
@@ -8,7 +8,8 @@ import { extractPalette } from "./extract.js";
 import { assignRoles, makeSwatch, MAX_NEUTRAL, MAX_SUPPORT, type BrandPalette, type Swatch } from "./roles.js";
 import { recordSource, savedSource, type SavedSource } from "../provenance.js";
 
-export const COLORS_PROMPT_VERSION = "colors-v1";
+// v2: the model now sees imageForModel's normalized PNG (downscaled, EXIF-upright) for raster logos too.
+export const COLORS_PROMPT_VERSION = "colors-v2";
 const NAME_MAX = 40;
 const RATIONALE_MAX = 500;
 
@@ -111,8 +112,7 @@ export async function suggestPalette(ctx: AppContext, projectId: string, opts: {
   const base = assignRoles(await extractPalette(bytes, meta.mime));
   const brief = await resolveBrief(ctx, projectId, opts.brief);
   const provider = await ctx.getProvider();
-  const image =
-    meta.mime === "image/svg+xml" ? { mime: "image/png", bytes: await rasterizeToPng(bytes, meta.mime) } : { mime: meta.mime, bytes };
+  const image = await imageForModel(bytes, meta.mime);
   const all = [base.main, ...base.support, ...base.neutral];
   // AiError propagates to the error handler (mapped status); the deterministic palette stays available via GET.
   const ai = await provider.generateJson({

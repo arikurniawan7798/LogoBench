@@ -279,3 +279,30 @@ describe("colors routes", () => {
     expect((await request(app).get(`/api/projects/${id}/colors`)).status).toBe(200);
   });
 });
+
+describe("suggest sends the model a normalized image (imageForModel)", () => {
+const bigWebp = () => sharp({ create: { width: 2400, height: 1200, channels: 3, background: { r: 200, g: 30, b: 30 } } }).webp().toBuffer();
+// 40x20 pixels stored, EXIF orientation 6 (rotate 90 deg): upright it is 20 wide, 40 tall.
+const rotatedJpeg = () =>
+  sharp({ create: { width: 40, height: 20, channels: 3, background: { r: 200, g: 30, b: 30 } } }).jpeg().withMetadata({ orientation: 6 }).toBuffer();
+
+  it("a large WebP raster reaches the provider as a PNG fitted inside 1024x1024", async () => {
+    const id = await mkProject(await bigWebp(), "big.webp");
+    provider.enqueue({ swatches: [] });
+    await suggestPalette(ctx, id);
+    const sent = provider.calls[0].images[0];
+    expect(sent.mime).toBe("image/png");
+    const meta = await sharp(sent.bytes).metadata();
+    expect([meta.format, meta.width, meta.height]).toEqual(["png", 1024, 512]);
+  });
+
+  it("an EXIF-rotated JPEG reaches the provider upright", async () => {
+    const id = await mkProject(await rotatedJpeg(), "photo.jpg");
+    provider.enqueue({ swatches: [] });
+    await suggestPalette(ctx, id);
+    const sent = provider.calls[0].images[0];
+    expect(sent.mime).toBe("image/png");
+    const meta = await sharp(sent.bytes).metadata();
+    expect([meta.format, meta.width, meta.height, meta.orientation ?? 1]).toEqual(["png", 20, 40, 1]);
+  });
+});

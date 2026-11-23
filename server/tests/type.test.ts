@@ -196,7 +196,7 @@ describe("suggest", () => {
     expect(call.system).toContain("<brief></brief>");
     expect(call.prompt).toContain("<brief>");
     expect(call.prompt).not.toMatch(/<\/brief>[\s\S]*ignore previous/);
-    expect(TYPE_PROMPT_VERSION).toBe("type-v1");
+    expect(TYPE_PROMPT_VERSION).toBe("type-v2");
   });
 
   it("personality from a saved review is capped, single-line and inside exactly one fence", async () => {
@@ -230,5 +230,32 @@ describe("suggest", () => {
     expect(names.has(res.body.typeSystem.body)).toBe(true);
     expect(res.body.fallbacks).toEqual(["body"]);
     expect(JSON.stringify(res.body)).not.toContain("color:red");
+  });
+});
+
+describe("suggest sends the model a normalized image (imageForModel)", () => {
+const bigWebp = () => sharp({ create: { width: 2400, height: 1200, channels: 3, background: { r: 200, g: 30, b: 30 } } }).webp().toBuffer();
+// 40x20 pixels stored, EXIF orientation 6 (rotate 90 deg): upright it is 20 wide, 40 tall.
+const rotatedJpeg = () =>
+  sharp({ create: { width: 40, height: 20, channels: 3, background: { r: 200, g: 30, b: 30 } } }).jpeg().withMetadata({ orientation: 6 }).toBuffer();
+
+  const mk = async (buf: Buffer, name: string) => (await ctx.projects.create(ctx, "p", { buffer: buf, originalName: name })).id;
+
+  it("a large WebP raster reaches the provider as a PNG fitted inside 1024x1024", async () => {
+    const id = await mk(await bigWebp(), "big.webp");
+    provider.enqueue({ heading: "Inter", body: "Inter" });
+    await suggestTypography(ctx, id);
+    const sent = provider.calls[0].images[0];
+    expect(sent.mime).toBe("image/png");
+    const meta = await sharp(sent.bytes).metadata();
+    expect([meta.format, meta.width, meta.height]).toEqual(["png", 1024, 512]);
+  });
+
+  it("an EXIF-rotated JPEG reaches the provider upright", async () => {
+    const id = await mk(await rotatedJpeg(), "photo.jpg");
+    provider.enqueue({ heading: "Inter", body: "Inter" });
+    await suggestTypography(ctx, id);
+    const meta = await sharp(provider.calls[0].images[0].bytes).metadata();
+    expect([meta.format, meta.width, meta.height, meta.orientation ?? 1]).toEqual(["png", 20, 40, 1]);
   });
 });

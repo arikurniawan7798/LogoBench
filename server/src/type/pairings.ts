@@ -1,13 +1,14 @@
 import fs from "node:fs";
 import { z } from "zod";
 import type { AppContext } from "../context.js";
-import { rasterizeToPng } from "../image/raster.js";
+import { imageForModel } from "../image/raster.js";
 import { fenceBrief } from "../review/prompts.js";
 import { readReview } from "../review/cache.js";
 import { resolveBrief } from "../review/review.js";
 import { recordSource, savedSource, type SavedSource } from "../provenance.js";
 
-export const TYPE_PROMPT_VERSION = "type-v1";
+// v2: the model now sees imageForModel's normalized PNG (downscaled, EXIF-upright) for raster logos too.
+export const TYPE_PROMPT_VERSION = "type-v2";
 
 // ---- curated font list ----
 export const FONT_CATEGORIES = ["serif", "sans", "display", "script", "mono"] as const;
@@ -210,8 +211,7 @@ export async function suggestTypography(ctx: AppContext, projectId: string, opts
   const p = review?.result?.personality;
   const personality = p ? fencePersonality(Object.values(p)) : "";
   const provider = await ctx.getProvider();
-  const image =
-    meta.mime === "image/svg+xml" ? { mime: "image/png", bytes: await rasterizeToPng(bytes, meta.mime) } : { mime: meta.mime, bytes };
+  const image = await imageForModel(bytes, meta.mime);
   // AiError propagates to the error handler (mapped status); nothing is written on failure.
   const ai = await provider.generateJson({
     system: TYPE_SYSTEM_PROMPT,
