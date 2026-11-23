@@ -29,10 +29,13 @@ const LABELS: Record<string, string> = {
 };
 const PRIORITY_COLOR = { high: "#b3261e", medium: "#a15c00", low: "#2e7d32" } as const;
 
+export const FOOTER_TEXT = "AI feedback to support your design process, not a final judgment.";
+
 export async function buildReportPdf(
   project: Project,
   review: AdvancedReview,
   logo: { mime: string; bytes: Buffer },
+  opts: { createdAt?: string; compress?: boolean } = {},
 ): Promise<Buffer> {
   // pdfkit embeds only PNG/JPEG: normalize every logo (SVG, WebP, ...) to PNG.
   const png = await rasterizeToPng(logo.bytes, logo.mime, { maxSize: 800 });
@@ -41,6 +44,7 @@ export async function buildReportPdf(
     size: "A4",
     margins: { top: 56, bottom: 64, left: 56, right: 56 },
     bufferPages: true,
+    compress: opts.compress ?? true,
     info: { Title: pdfSafe(`Logo review - ${project.name}`) },
   });
   const chunks: Buffer[] = [];
@@ -69,7 +73,9 @@ export async function buildReportPdf(
   // Cover / summary
   doc.font("Helvetica-Bold").fontSize(24).fillColor(INK).text("Logo Review Report", left, doc.y, { width });
   doc.moveDown(0.2).font("Helvetica").fontSize(13).fillColor(MUTED).text(pdfSafe(project.name), left, doc.y, { width });
-  doc.moveDown(0.2).fontSize(9).text(`Prepared ${new Date().toISOString().slice(0, 10)}`, left, doc.y, { width });
+  // Date comes from the stored review so the PDF is deterministic and accurate for old reviews.
+  const created = opts.createdAt && !Number.isNaN(Date.parse(opts.createdAt)) ? new Date(opts.createdAt).toISOString().slice(0, 10) : null;
+  if (created) doc.moveDown(0.2).fontSize(9).text(`Review generated ${created}`, left, doc.y, { width });
   doc.moveDown(1);
   const imgBox = 220;
   const imgTop = doc.y;
@@ -132,7 +138,7 @@ export async function buildReportPdf(
     const m = doc.page.margins.bottom;
     doc.page.margins.bottom = 0;
     doc.font("Helvetica").fontSize(8).fillColor(MUTED).text(
-      `AI-generated feedback to support your design process, not a final judgment.   Page ${i + 1} of ${range.count}`,
+      `${FOOTER_TEXT}   Page ${i + 1} of ${range.count}`,
       left,
       doc.page.height - 40,
       { width, align: "center", lineBreak: false },

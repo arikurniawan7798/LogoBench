@@ -7,7 +7,7 @@ import sharp from "sharp";
 import { createApp } from "../src/app.js";
 import { FakeProvider } from "../src/ai/fake.js";
 import { advancedReview } from "../src/review/advanced.js";
-import { buildReportPdf } from "../src/report/pdf.js";
+import { buildReportPdf, FOOTER_TEXT } from "../src/report/pdf.js";
 import { MAX_BRIEF_CHARS } from "../src/review/review.js";
 import type { AdvancedReview } from "../src/review/schema.js";
 import type { AppContext } from "../src/context.js";
@@ -33,6 +33,12 @@ let png: Buffer;
 let pid: string;
 const project = (name = "Acme") => ({ id: "x", name, createdAt: new Date().toISOString(), versions: [] });
 const pages = (pdf: Buffer) => (pdf.toString("latin1").match(/\/Type \/Page\b(?!s)/g) ?? []).length;
+// Uncompressed build: decode the hex-encoded text of each page's content stream (pages without text are dropped).
+const pageTexts = (pdf: Buffer): string[] =>
+  [...pdf.toString("latin1").matchAll(/stream\r?\n([\s\S]*?)endstream/g)]
+    .map((m) => [...m[1].matchAll(/<([0-9a-fA-F]+)>/g)].map((h) => Buffer.from(h[1], "hex").toString("latin1")).join(""))
+    .filter((t) => t.length > 0);
+const long600 = (c: string) => `${c} `.repeat(Math.ceil(600 / (c.length + 1))).slice(0, 600);
 
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), "logobench-a-"));
@@ -69,10 +75,36 @@ describe("advancedReview", () => {
 
 describe("buildReportPdf", () => {
   const logo = (bytes: Buffer, mime: string) => ({ bytes, mime });
-  it("starts with %PDF and has >=2 pages for 8 fixes", async () => {
+  it("starts with %PDF", async () => {
     const pdf = await buildReportPdf(project(), adv({ fixes: fixes(8) }), logo(png, "image/png"));
     expect(pdf.subarray(0, 4).toString()).toBe("%PDF");
-    expect(pages(pdf)).toBeGreaterThanOrEqual(2);
+  });
+
+  it("paginates: 12 long fixes need more pages than 1 fix, no blank pages, footer on each page", async () => {
+    const heavy = fixes(12).map((f) => ({ ...f, issue: long600("issue"), fix: long600("fix") }));
+    const few = await buildReportPdf(project(), adv({ fixes: fixes(1) }), logo(png, "image/png"), { compress: false });
+    const many = await buildReportPdf(project(), adv({ fixes: heavy }), logo(png, "image/png"), { compress: false });
+    expect(pages(many)).toBeGreaterThan(pages(few));
+    const texts = pageTexts(many);
+    expect(texts).toHaveLength(pages(many));
+    for (const t of texts) {
+      expect(t).toContain(FOOTER_TEXT);
+      expect(t.replace(FOOTER_TEXT, "").replace(/Page \d+ of \d+/, "").trim().length).toBeGreaterThan(20);
+    }
+  });
+
+  it("a review with no fixes stays within 2 pages (the old >=2 assertion would pass here too)", async () => {
+    const zero = await buildReportPdf(project(), adv({ fixes: [], checklist: [], presentationIdeas: [] }), logo(png, "image/png"), { compress: false });
+    expect(pages(zero)).toBe(2);
+  });
+
+  it("uses the review createdAt and is deterministic", async () => {
+    const o = { createdAt: "2020-02-03T10:00:00.000Z", compress: false };
+    const a = await buildReportPdf(project(), adv(), logo(png, "image/png"), o);
+    expect(pageTexts(a).join("")).toContain("2020-02-03");
+    const b = await buildReportPdf(project(), adv(), logo(png, "image/png"), o);
+    const strip = (x: Buffer) => x.toString("latin1").replace(/\/(CreationDate|ModDate) \([^)]*\)/g, "").replace(/\/ID \[[^\]]*\]/, "");
+    expect(strip(a)).toBe(strip(b));
   });
 
   it("builds for SVG, PNG and WebP logos", async () => {
@@ -116,6 +148,53 @@ describe("advanced routes", () => {
     expect((await request(app).get(`/api/projects/nope/report.pdf`)).status).toBe(404);
   });
 
+  const getPdf = (id: string) =>
+    request(app).get(`/api/projects/${id}/report.pdf`).buffer(true).parse((r, cb) => {
+      const c: Buffer[] = [];
+      r.on("data", (d) => c.push(d));
+      r.on("end", () => cb(null, Buffer.concat(c)));
+    });
+
+  it("report.pdf 404s when the review is for an older logo version, 200 after re-run", async () => {
+    provider.enqueue(adv(), adv());
+    await request(app).post(`/api/projects/${pid}/advanced-review`).send({});
+    expect((await getPdf(pid)).status).toBe(200);
+    const other = await sharp({ create: { width: 8, height: 8, channels: 3, background: { r: 0, g: 0, b: 255 } } }).png().toBuffer();
+    await ctx.projects.addVersion(ctx, pid, { buffer: other, originalName: "b.png" });
+    const stale = await request(app).get(`/api/projects/${pid}/report.pdf`);
+    expect(stale.status).toBe(404);
+    expect(stale.body.error).toMatch(/out of date/i);
+    await request(app).post(`/api/projects/${pid}/advanced-review`).send({});
+    expect((await getPdf(pid)).status).toBe(200);
+  });
+
+  const dispositionFor = async (name: string) => {
+    const p = await ctx.projects.create(ctx, name, { buffer: png, originalName: "a.png" });
+    provider.enqueue(adv());
+    await request(app).post(`/api/projects/${p.id}/advanced-review`).send({});
+    const res = await getPdf(p.id);
+    expect(res.status).toBe(200);
+    return res.headers["content-disposition"] as string;
+  };
+
+  it("all-non-ASCII or punctuation-only names fall back to logo-review.pdf", async () => {
+    expect(await dispositionFor("日本語")).toContain('filename="logo-review.pdf"');
+    expect(await dispositionFor("...")).toContain('filename="logo-review.pdf"');
+  });
+
+  it("Japanese and Arabic names get a correct filename* and an ASCII fallback", async () => {
+    const ja = await dispositionFor("日本語ロゴ");
+    expect(ja).toContain(`filename*=UTF-8''${encodeURIComponent("日本語ロゴ-review.pdf")}`);
+    expect(ja).toMatch(/filename="[\x20-\x7e]+"/);
+    expect(await dispositionFor("شعار")).toContain(`filename*=UTF-8''${encodeURIComponent("شعار-review.pdf")}`);
+  });
+
+  it("quotes, CR and LF in the name cannot inject headers or break the quoting", async () => {
+    const cd = await dispositionFor("a\"b\r\nSet-Cookie: x=1;'()*");
+    expect(cd).not.toMatch(/[\r\n]/);
+    expect(cd).toMatch(/^attachment; filename="[A-Za-z0-9._ -]+\.pdf"; filename\*=UTF-8''[A-Za-z0-9%._-]+$/);
+  });
+
   it("report.pdf is an attachment with a sanitized ASCII filename", async () => {
     const p = await ctx.projects.create(ctx, 'Evil "name"\r\nX-Injected: 1 é日本', { buffer: png, originalName: "a.png" });
     provider.enqueue(adv());
@@ -128,7 +207,7 @@ describe("advanced routes", () => {
     expect(res.status).toBe(200);
     expect(res.headers["content-type"]).toContain("application/pdf");
     const cd = res.headers["content-disposition"] as string;
-    expect(cd).toMatch(/^attachment; filename="[A-Za-z0-9._ -]+\.pdf"$/);
+    expect(cd).toMatch(/^attachment; filename="[A-Za-z0-9._ -]+\.pdf"; filename*=UTF-8''[A-Za-z0-9%._-]+$/);
     expect(res.headers["x-injected"]).toBeUndefined();
     expect((res.body as Buffer).subarray(0, 4).toString()).toBe("%PDF");
   });
