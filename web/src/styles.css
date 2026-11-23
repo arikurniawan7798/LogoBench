@@ -461,6 +461,24 @@ input::placeholder {
 .project-head h1 {
   overflow-wrap: anywhere;
 }
+.project-upload {
+  margin-left: auto;
+  max-width: 16rem;
+}
+.project-upload .btn {
+  cursor: pointer;
+}
+.project-upload .btn.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.project-upload input:focus-visible + .btn {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.project-upload p {
+  margin: 0.4rem 0 0;
+}
 .project-logo {
   flex: none;
   width: 112px;
@@ -1336,6 +1354,9 @@ a.btn {
   .project-head {
     flex-direction: column;
     align-items: flex-start;
+  }
+  .project-upload {
+    margin-left: 0;
   }
   .project-logo {
     width: 88px;

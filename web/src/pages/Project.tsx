@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { api, logoUrl, toApiError, type ApiError, type Project as ProjectT } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
+import { ACCEPT, checkFile } from "../files";
 import { href, navigate } from "../router";
 import ReviewTab from "./ReviewTab";
 import AdvancedTab from "./AdvancedTab";
@@ -23,12 +24,17 @@ export const TABS = [
 export default function Project({ id, tab }: { id: string; tab: string }) {
   const [project, setProject] = useState<ProjectT | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const uploadingRef = useRef(false); // double-submit guard (state updates are async)
+  const idRef = useRef(id);
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const active = TABS.some((t) => t.id === tab) ? tab : "review";
 
   useEffect(() => {
     let live = true;
+    idRef.current = id;
     setProject(null);
+    setError(null);
     api.getProject(id).then(
       (p) => live && setProject(p),
       (e) => live && setError(toApiError(e)),
@@ -37,6 +43,31 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
       live = false;
     };
   }, [id]);
+
+  async function onNewVersion(e: ChangeEvent<HTMLInputElement>) {
+    const input = e.currentTarget;
+    const file = input.files?.[0];
+    input.value = ""; // choosing the same file again still fires change
+    if (!file || uploadingRef.current) return;
+    const problem = checkFile(file);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    const forId = id;
+    uploadingRef.current = true;
+    setUploading(true);
+    setError(null);
+    try {
+      const updated = await api.addVersion(forId, file);
+      if (idRef.current === forId) setProject(updated);
+    } catch (err) {
+      if (idRef.current === forId) setError(toApiError(err));
+    } finally {
+      uploadingRef.current = false;
+      setUploading(false);
+    }
+  }
 
   function select(tabId: string, focus = false) {
     navigate(href.project(id, tabId));
@@ -76,6 +107,7 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
 
   return (
     <div className="project">
+      <ErrorBanner error={error} onDismiss={() => setError(null)} />
       <header className="project-head">
         <div className="project-logo">
           <img src={logoUrl(project.id, latest?.id)} alt={`${project.name} logo`} />
@@ -89,6 +121,20 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
             {latest ? `${latest.originalName} · ` : ""}
             {project.versions.length} {project.versions.length === 1 ? "version" : "versions"}
           </p>
+        </div>
+        <div className="project-upload">
+          <input
+            id="new-version-file"
+            className="sr-only"
+            type="file"
+            accept={ACCEPT}
+            disabled={uploading}
+            onChange={onNewVersion}
+          />
+          <label htmlFor="new-version-file" className={`btn${uploading ? " is-disabled" : ""}`} aria-busy={uploading}>
+            {uploading ? "Uploading…" : "Upload new version"}
+          </label>
+          <p className="muted small">SVG, PNG, JPG or WebP, up to 10 MB. Tabs refresh for the new version.</p>
         </div>
       </header>
 
@@ -120,23 +166,24 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
   );
 }
 
-/** Keyed by project id so a tab never shows (or receives late responses for) another project's data. */
+/** Keyed by project + version id so a tab never shows (or receives late responses for) another project's or an older version's data. */
 function TabContent({ tab, project }: { tab: string; project: ProjectT }) {
-  const id = project.id;
+  const key = `${project.id}:${project.versions[project.versions.length - 1]?.id ?? ""}`;
+  const projectId = project.id;
   switch (tab) {
     case "advanced":
-      return <AdvancedTab key={id} projectId={id} />;
+      return <AdvancedTab key={key} projectId={projectId} />;
     case "colors":
-      return <ColorsTab key={id} projectId={id} />;
+      return <ColorsTab key={key} projectId={projectId} />;
     case "type":
-      return <TypeTab key={id} projectId={id} />;
+      return <TypeTab key={key} projectId={projectId} />;
     case "mockups":
-      return <MockupsTab key={id} projectId={id} versionId={project.versions[project.versions.length - 1]?.id} />;
+      return <MockupsTab key={key} projectId={projectId} versionId={project.versions[project.versions.length - 1]?.id} />;
     case "export":
-      return <ExportTab key={id} project={project} />;
+      return <ExportTab key={key} project={project} />;
     case "identity":
-      return <IdentityTab key={id} projectId={id} />;
+      return <IdentityTab key={key} projectId={projectId} />;
     default:
-      return <ReviewTab key={id} projectId={id} />;
+      return <ReviewTab key={key} projectId={projectId} />;
   }
 }

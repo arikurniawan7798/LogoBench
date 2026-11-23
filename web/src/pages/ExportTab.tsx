@@ -44,8 +44,8 @@ export default function ExportTab({ project }: { project: Project }) {
           <div className="banner-body">
             <p className="banner-title-info">Raster logo: some files are not available</p>
             <p>
-              Recolored and vector files need an SVG source. Upload an SVG version of this logo to unlock them; LogoBench does not
-              trace raster images.
+              Recolored and vector files need an SVG source. Use "Upload new version" at the top of this page to add an SVG version
+              of this logo and unlock them; LogoBench does not trace raster images.
             </p>
           </div>
         </div>

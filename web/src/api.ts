@@ -247,6 +247,13 @@ export const api = {
     return request<Project>("/api/projects", { method: "POST", body: form });
   },
 
+  /** POST /api/projects/:id/versions: adds a new logo version (validated and sanitized like the first upload). */
+  addVersion(id: string, file: File): Promise<Project> {
+    const form = new FormData();
+    form.append("logo", file);
+    return request<Project>(`/api/projects/${enc(id)}/versions`, { method: "POST", body: form });
+  },
+
   /** Latest stored review, or null when the project has none yet (server answers 404). */
   async getReview(id: string): Promise<StoredReviewResponse | null> {
     try {
