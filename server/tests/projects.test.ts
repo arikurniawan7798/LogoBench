@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { request } from "./helpers/request.js";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -102,5 +102,26 @@ describe("projects api", () => {
   it("unknown project returns 404", async () => {
     expect((await request(app).get("/api/projects/nope")).status).toBe(404);
     expect((await request(app).get("/api/projects/..%2F..%2Fx")).status).toBe(404);
+  });
+});
+
+describe("history resilience", () => {
+  it("GET /api/projects skips a corrupt or wrong-shape project.json with one warning instead of failing", async () => {
+    const good = (await request(app).post("/api/projects").field("name", "ok").attach("logo", PNG, "a.png")).body;
+    await fs.mkdir(path.join(dir, "projects", "bad-json"), { recursive: true });
+    await fs.writeFile(path.join(dir, "projects", "bad-json", "project.json"), "{ not json SECRET");
+    await fs.mkdir(path.join(dir, "projects", "bad-shape"), { recursive: true });
+    await fs.writeFile(path.join(dir, "projects", "bad-shape", "project.json"), JSON.stringify({ id: "bad-shape" }));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const list = await request(app).get("/api/projects");
+      expect(list.status).toBe(200);
+      expect(list.body.map((p: { id: string }) => p.id)).toEqual([good.id]);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0])).toMatch(/skipped 2/);
+      expect(String(warn.mock.calls[0])).not.toContain("SECRET");
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

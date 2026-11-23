@@ -33,6 +33,18 @@ export function sniffMime(b: Buffer): string | null {
 }
 
 const ID_RE = /^[A-Za-z0-9-]+$/;
+
+function isProject(p: unknown): p is Project {
+  const o = p as Partial<Project> | null;
+  return (
+    !!o &&
+    typeof o === "object" &&
+    typeof o.id === "string" &&
+    typeof o.name === "string" &&
+    typeof o.createdAt === "string" &&
+    Array.isArray(o.versions)
+  );
+}
 const dir = (id: string) => `projects/${id}`;
 
 async function loadProject(ctx: AppContext, id: string): Promise<Project> {
@@ -81,9 +93,25 @@ export const projectService = {
     return project;
   },
   get: (ctx: AppContext, id: string) => loadProject(ctx, id),
+  /** All readable projects, oldest first. One corrupt or wrong-shaped project.json is skipped (with a warning), never fatal. */
   async list(ctx: AppContext): Promise<Project[]> {
-    const ids = await ctx.store.list("projects");
-    const all = await Promise.all(ids.map((id) => (ID_RE.test(id) ? ctx.store.readJson<Project>(`${dir(id)}/project.json`) : null)));
+    const ids = (await ctx.store.list("projects")).filter((id) => ID_RE.test(id));
+    let skipped = 0;
+    const all = await Promise.all(
+      ids.map(async (id) => {
+        try {
+          const p = await ctx.store.readJson<unknown>(`${dir(id)}/project.json`);
+          if (p === null) return null; // a folder without project.json (e.g. half-created): not a record
+          if (isProject(p)) return p;
+        } catch {
+          /* unreadable or invalid JSON */
+        }
+        skipped++;
+        return null;
+      }),
+    );
+    // Count only: never echo file content (it may hold anything).
+    if (skipped) console.warn(`projects: skipped ${skipped} unreadable project record(s)`);
     return all.filter((p): p is Project => !!p).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   },
   async addVersion(ctx: AppContext, id: string, file: UploadFile): Promise<Project> {
