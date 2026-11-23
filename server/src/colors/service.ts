@@ -5,7 +5,8 @@ import { fenceBrief } from "../review/prompts.js";
 import { resolveBrief } from "../review/review.js";
 import { HEX_RE } from "./convert.js";
 import { extractPalette } from "./extract.js";
-import { assignRoles, makeSwatch, MAX_NEUTRAL, MAX_SUPPORT, type BrandPalette, type Swatch } from "./roles.js";
+import { assignRoles, defaultPalette, makeSwatch, MAX_NEUTRAL, MAX_SUPPORT, type BrandPalette, type Swatch } from "./roles.js";
+import { HttpError } from "../errors.js";
 import { recordSource, savedSource, type SavedSource } from "../provenance.js";
 
 // v2: the model now sees imageForModel's normalized PNG (downscaled, EXIF-upright) for raster logos too.
@@ -77,6 +78,19 @@ export async function getPalette(ctx: AppContext, projectId: string): Promise<Br
     }
   }
   return assignRoles(await extractPalette(bytes, meta.mime));
+}
+
+/**
+ * The palette every renderer uses (mockup routes, Create identity's mockups, the identity page): getPalette, or the
+ * neutral default when no colors can be extracted (e.g. a fully transparent or undecodable logo). Unknown project: 404.
+ */
+export async function getRenderPalette(ctx: AppContext, projectId: string): Promise<BrandPalette> {
+  try {
+    return await getPalette(ctx, projectId);
+  } catch (e) {
+    if (e instanceof HttpError) return defaultPalette();
+    throw e;
+  }
 }
 
 // ---- AI suggestion ----

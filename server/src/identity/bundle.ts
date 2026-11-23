@@ -1,7 +1,7 @@
 import { zipSync } from "fflate";
 import { z } from "zod";
 import type { AppContext } from "../context.js";
-import { getPalette } from "../colors/service.js";
+import { getRenderPalette } from "../colors/service.js";
 import { getType } from "../type/pairings.js";
 import { readReview } from "../review/cache.js";
 import { reviewSchema } from "../review/schema.js";
@@ -55,7 +55,7 @@ export async function getFontFiles(ctx: AppContext, family: string): Promise<Fon
 export async function renderProjectMockups(ctx: AppContext, projectId: string): Promise<{ kind: MockupKind; png: Buffer }[]> {
   const project = await ctx.projects.get(ctx, projectId);
   const { meta, bytes } = await ctx.projects.latestVersion(ctx, projectId);
-  const palette = await getPalette(ctx, projectId);
+  const palette = await getRenderPalette(ctx, projectId);
   const type = await getType(ctx, projectId);
   const out: { kind: MockupKind; png: Buffer }[] = [];
   for (const kind of MOCKUP_KINDS) {
@@ -76,7 +76,7 @@ export async function buildIdentityZip(
 ): Promise<{ zip: Buffer; warnings: string[] }> {
   const project = await ctx.projects.get(ctx, projectId); // 404 for unknown project
   const { meta, bytes } = await ctx.projects.latestVersion(ctx, projectId);
-  const palette = await getPalette(ctx, projectId);
+  const palette = await getRenderPalette(ctx, projectId);
   const type = await getType(ctx, projectId);
   const stored = await readReview(ctx, projectId).catch(() => null);
   const review = stored ? reviewSchema.safeParse(stored.result) : undefined;

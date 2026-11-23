@@ -1,8 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import type { AppContext } from "../context.js";
 import { HttpError } from "../errors.js";
-import { defaultPalette } from "../colors/roles.js";
-import { normalizePalette } from "../colors/service.js";
+import { getRenderPalette } from "../colors/service.js";
 import { getType } from "../type/pairings.js";
 import { MOCKUP_KINDS, MOCKUP_SPECS, isMockupKind, renderMockup } from "../mockups/render.js";
 
@@ -25,16 +24,8 @@ export function mockupsRouter(ctx: AppContext): Router {
     }
     const project = await ctx.projects.get(ctx, id); // 404 for unknown project
     const { meta, bytes } = await ctx.projects.latestVersion(ctx, id);
-    // Saved palette if valid, else the neutral default (mockups never extract/call AI).
-    let palette = defaultPalette();
-    const saved = await ctx.store.readJson<unknown>(`projects/${id}/colors.json`);
-    if (saved) {
-      try {
-        palette = normalizePalette(saved);
-      } catch {
-        /* corrupt file: keep default */
-      }
-    }
+    // Same palette source as the identity bundle: saved if valid, else extracted from the logo (never AI).
+    const palette = await getRenderPalette(ctx, id);
     const png = await renderMockup(m[1], {
       logo: { mime: meta.mime, bytes },
       palette,

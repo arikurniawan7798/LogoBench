@@ -10,6 +10,9 @@ import { MOCKUP_KINDS, MOCKUP_SPECS, buildMockupSvg, prepareScene, renderMockup,
 import { fitBox } from "../src/mockups/templates/common.js";
 import { defaultPalette, makeSwatch } from "../src/colors/roles.js";
 import { defaultTypeSystem } from "../src/type/pairings.js";
+import { renderProjectMockups } from "../src/identity/bundle.js";
+import { getPalette } from "../src/colors/service.js";
+import { hexToRgb } from "../src/colors/convert.js";
 
 const SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="#FF0000"/></svg>`;
 const EVIL = `"><script>alert(1)</script> & 'x'`;
@@ -214,6 +217,21 @@ describe("mockup routes", () => {
     });
     expect(r.status).toBe(200);
     expect(await pixel(r.body as Buffer, 100, 100)).toEqual([0, 255, 0]);
+  });
+
+  it("with no saved palette uses the logo's extracted colors, same as the identity bundle", async () => {
+    const id = await mk("Acme");
+    const r = await request(app).get(`/api/projects/${id}/mockups/appicon.png`).buffer(true).parse((res, cb) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (c: Buffer) => chunks.push(c));
+      res.on("end", () => cb(null, Buffer.concat(chunks)));
+    });
+    expect(r.status).toBe(200);
+    const fromRoute = await pixel(r.body as Buffer, 100, 100);
+    const bundled = (await renderProjectMockups(ctx, id)).find((m) => m.kind === "appicon")!.png;
+    expect(fromRoute).toEqual(await pixel(bundled, 100, 100));
+    expect(fromRoute).toEqual(hexToRgb((await getPalette(ctx, id)).main.hex));
+    expect(fromRoute).not.toEqual(hexToRgb(defaultPalette().main.hex));
   });
 
   it("lists kinds and dimensions", async () => {
