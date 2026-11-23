@@ -37,17 +37,23 @@ async function loadProject(ctx: AppContext, id: string): Promise<Project> {
   return p;
 }
 
-async function storeVersion(ctx: AppContext, projectId: string, file: UploadFile): Promise<ProjectVersion> {
-  const mime = sniffMime(file.buffer);
+/** Shared upload validation: magic-byte sniff (415 if unsupported) and SVG sanitizing. Returns the bytes to store/use. */
+export function prepareImage(buffer: Buffer): { mime: string; bytes: Buffer } {
+  const mime = sniffMime(buffer);
   if (!mime) throw new UnsupportedMediaError("Unsupported file type; use SVG, PNG, JPG or WebP");
-  let bytes = file.buffer;
+  let bytes = buffer;
   if (mime === "image/svg+xml") {
     try {
-      bytes = Buffer.from(sanitizeSvg(file.buffer.toString("utf8")), "utf8");
+      bytes = Buffer.from(sanitizeSvg(buffer.toString("utf8")), "utf8");
     } catch {
       throw new UnsupportedMediaError("Invalid SVG");
     }
   }
+  return { mime, bytes };
+}
+
+async function storeVersion(ctx: AppContext, projectId: string, file: UploadFile): Promise<ProjectVersion> {
+  const { mime, bytes } = prepareImage(file.buffer);
   const id = ctx.store.newId();
   const name = `${id}.${EXT[mime]}`;
   await ctx.store.writeFile(`${dir(projectId)}/${name}`, bytes);
