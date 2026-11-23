@@ -19,8 +19,8 @@ npm install
 
 - **Production-style (one process):** `npm start` builds the web app and serves it, together with the API,
   from Express. Open http://127.0.0.1:3001.
-- **Development:** `npm run dev` starts the API (with reload) and the Vite dev server. Open the URL Vite prints
-  (normally http://localhost:5173); it proxies `/api` to the server on port 3001.
+- **Development:** `npm run dev` starts the API (with reload) and the Vite dev server. Open http://localhost:5173
+  (Vite uses that port strictly and fails rather than picking another); it proxies `/api` to the server on port 3001.
 
 The port is 3001 unless you set `PORT` (see below). Other scripts: `npm run build` (type-check server, build web),
 `npm test` (server and web tests).
@@ -56,25 +56,34 @@ It could contain a plaintext API key only if one was saved through the settings 
 
 ## Features
 
-- Upload a logo (SVG, PNG, JPG) and keep versions per project
-- AI review with scores, personality read, summary, advanced review and a PDF report; compare logos
-- Color palette extraction and editing (HEX, RGB, HSL; CMYK values are approximate, not print-accurate)
+- Upload a logo (SVG, PNG, JPG or WebP, up to 10 MB) and add new versions later with "Upload new version" on the
+  project page. Illustrator "Save As" SVGs are accepted; SVGs whose DOCTYPE uses external or nested entities are
+  refused (re-export with File > Export > SVG)
+- AI review with scores, personality read, summary, advanced review and a PDF report; compare 2 or 3 logos (the
+  Compare brief can be loaded from a project's brief, including filled client forms)
+- Color palette extraction and editing (HEX, RGB and CMYK; CMYK values are approximate, not print-accurate)
 - Typography suggestions and pairings
 - Mockups (website, app icon and more), favicon and background tools
 - Client brief forms
 - Export zip, and a brand-identity zip (single `index.html` page, logo, palette, mockups, fonts)
-- "Create identity" runs review, colors, type, mockups and the bundle in one go, reporting any step that failed
+- "Create identity" runs review, colors, type, mockups and the bundle in one go, reporting any step that failed.
+  A palette or type system you saved yourself is kept: those steps are skipped, never overwritten
 
-Caveat: recolored logos and the final production files are produced only from SVG sources. Raster uploads (PNG/JPG)
-can be reviewed, but the export tells you which files were skipped because they need an SVG.
+Caveat: recolored logos and the final production files are produced only from SVG sources. Raster uploads (PNG, JPG,
+WebP) can be reviewed, but the export tells you which files were skipped because they need an SVG (upload an SVG as a
+new version to get them).
 
 ## Privacy
 
 - With Gemini selected, your logo and brief are sent to Google for each AI call.
-- With Ollama, AI calls stay on your machine.
+- With Ollama, AI calls stay on your machine only if the Ollama URL in Settings points to this machine (the default
+  `http://127.0.0.1:11434` does); a remote Ollama URL receives your logo and brief.
 - The identity zip embeds fonts that are downloaded from Google Fonts at export time (this request carries only the
   font names). The resulting zip works offline.
 - Nothing else leaves the machine; the server binds to 127.0.0.1 only.
+- Web pages you visit cannot drive the app: the server answers only requests addressed to `127.0.0.1`, `localhost`
+  or `[::1]` on its port (anything else, e.g. a DNS-rebinding host name, gets 403), and refuses POST/PUT/DELETE
+  requests whose `Origin` is another site. Open the app by one of those addresses.
 
 ## Known limitation
 

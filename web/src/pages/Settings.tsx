@@ -84,7 +84,10 @@ export default function Settings() {
                 onChange={() => set("provider", "ollama")}
               />
               <span>
-                <strong>Ollama</strong> <span className="muted">· runs a vision model on your own machine; nothing leaves it</span>
+                <strong>Ollama</strong>{" "}
+                <span className="muted">
+                  · runs a vision model locally; nothing leaves your machine as long as the Ollama URL points to this machine
+                </span>
               </span>
             </label>
           </fieldset>
@@ -100,7 +103,11 @@ export default function Settings() {
                 value={form.geminiModel}
                 onChange={(e) => set("geminiModel", e.target.value)}
                 spellCheck={false}
+                aria-describedby="gemini-model-hint"
               />
+              <p id="gemini-model-hint" className="muted small">
+                If reviews fail with &quot;model not found&quot;, check ai.google.dev for a current free-tier vision model.
+              </p>
             </div>
             <div className="key-status" aria-live="polite">
               <span className={`dot ${saved.hasGeminiKey ? "ok" : "warn"}`} aria-hidden="true" />
