@@ -28,9 +28,34 @@ export const settingsInput = z.object({
   geminiKey: z.string().optional(),
 });
 
+/** Reads settings.json tolerantly: corrupt JSON or invalid fields fall back to defaults (never logs values). */
+async function readSaved(store: Store): Promise<Partial<Settings>> {
+  let raw: unknown;
+  try {
+    raw = await store.readJson<unknown>(FILE);
+  } catch (e) {
+    if (!(e instanceof SyntaxError)) throw e;
+    console.warn(`${FILE} is corrupt (not valid JSON); using default settings. Saving settings will overwrite it.`);
+    return {};
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const o = raw as Record<string, unknown>;
+  const out: Partial<Settings> = {};
+  const provider = settingsInput.shape.provider.safeParse(o.provider);
+  if (provider.success) out.provider = provider.data;
+  const gm = settingsInput.shape.geminiModel.safeParse(o.geminiModel);
+  if (gm.success) out.geminiModel = gm.data;
+  const om = settingsInput.shape.ollamaModel.safeParse(o.ollamaModel);
+  if (om.success) out.ollamaModel = om.data;
+  const url = settingsInput.shape.ollamaUrl.safeParse(o.ollamaUrl);
+  if (url.success) out.ollamaUrl = url.data;
+  if (typeof o.geminiKey === "string" && o.geminiKey) out.geminiKey = o.geminiKey;
+  return out;
+}
+
 /** Effective settings: saved file (with defaults), and saved key beating the env key. */
 export async function loadSettings(store: Store): Promise<Settings> {
-  const saved = (await store.readJson<Partial<Settings>>(FILE)) ?? {};
+  const saved = await readSaved(store);
   const geminiKey = saved.geminiKey || loadConfig().geminiKey || undefined;
   return {
     provider: saved.provider ?? "gemini",
@@ -46,7 +71,7 @@ export async function saveSettings(store: Store, input: unknown): Promise<void> 
   if (!parsed.success) {
     throw new SettingsValidationError(parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "));
   }
-  const saved = (await store.readJson<Partial<Settings>>(FILE)) ?? {};
+  const saved = await readSaved(store);
   const { geminiKey, ...rest } = parsed.data;
   const key = geminiKey === undefined ? saved.geminiKey : geminiKey || undefined;
   await store.writeJson(FILE, { ...rest, ...(key ? { geminiKey: key } : {}) });

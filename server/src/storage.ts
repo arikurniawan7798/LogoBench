@@ -33,7 +33,15 @@ export class Store {
   async writeFile(rel: string, data: Buffer): Promise<void> {
     const full = this.resolve(rel);
     await fs.mkdir(path.dirname(full), { recursive: true });
-    await fs.writeFile(full, data);
+    // Atomic: write a sibling temp file, then rename over the target.
+    const tmp = `${full}.${process.pid}.${crypto.randomUUID()}.tmp`;
+    try {
+      await fs.writeFile(tmp, data);
+      await fs.rename(tmp, full);
+    } catch (e) {
+      await fs.rm(tmp, { force: true }).catch(() => {});
+      throw e;
+    }
   }
 
   async readFile(rel: string): Promise<Buffer> {

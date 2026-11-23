@@ -7,6 +7,8 @@ import path from "node:path";
 import { createApp } from "../src/app.js";
 import { errorHandler } from "../src/errors.js";
 import { AiError } from "../src/ai/provider.js";
+import { loadSettings } from "../src/settings.js";
+import { DEFAULT_GEMINI_MODEL } from "../src/config.js";
 
 let dir: string;
 const savedEnv = process.env.GEMINI_API_KEY;
@@ -105,4 +107,43 @@ it("maps other AiError codes", async () => {
   }
   const bm = await request(appThrowing(new AiError("BAD_MODEL", "m"))).get("/boom");
   expect(bm.body.error.message).toMatch(/Settings/);
+});
+
+it("corrupt settings.json: GET returns defaults, PUT overwrites it", async () => {
+  fs.writeFileSync(path.join(dir, "settings.json"), '{"provider": "oll');
+  const app = createApp({ dataDir: dir });
+  const get = await request(app).get("/api/settings");
+  expect(get.status).toBe(200);
+  expect(get.body.provider).toBe("gemini");
+  await request(app).put("/api/settings").send(body).expect(200);
+  expect(JSON.parse(fs.readFileSync(path.join(dir, "settings.json"), "utf8")).provider).toBe("ollama");
+});
+
+it("invalid hand-edited fields fall back to defaults", async () => {
+  fs.writeFileSync(path.join(dir, "settings.json"), JSON.stringify({ provider: "ollama", geminiModel: "", ollamaUrl: "zzz" }));
+  const res = await request(createApp({ dataDir: dir })).get("/api/settings");
+  expect(res.body).toMatchObject({ provider: "ollama", geminiModel: DEFAULT_GEMINI_MODEL, ollamaUrl: "http://127.0.0.1:11434" });
+});
+
+it("saved key beats env key", async () => {
+  const app = createApp({ dataDir: dir });
+  process.env.GEMINI_API_KEY = "env-key";
+  expect((await loadSettings(app.locals.ctx.store)).geminiKey).toBe("env-key");
+  await request(app).put("/api/settings").send({ ...body, geminiKey: "saved-key" });
+  expect((await loadSettings(app.locals.ctx.store)).geminiKey).toBe("saved-key");
+});
+
+it("non-AI errors through the central handler", async () => {
+  const app = createApp({ dataDir: dir });
+  const big = await request(app).put("/api/settings").set("Content-Type", "application/json").send(JSON.stringify({ x: "a".repeat(11 * 1024 * 1024) }));
+  expect(big.status).toBe(413);
+  expect(big.body).toEqual({ error: "Request body too large" });
+  const cs = await request(app).put("/api/settings").set("Content-Type", "application/json; charset=iso-8859-1").send("{}");
+  expect(cs.status).toBe(415);
+  const bad = await request(app).put("/api/settings").set("Content-Type", "application/json").send('{"geminiKey":"FAKE-SECRET-999",');
+  expect(bad.status).toBe(400);
+  expect(bad.body).toEqual({ error: "Invalid JSON body" });
+  expect(JSON.stringify(bad.body)).not.toContain("FAKE-SECRET");
+  expect((await request(app).get("/api/projects/nope")).status).toBe(404);
+  expect((await request(appThrowing(new Error("secret detail"))).get("/boom")).body).toEqual({ error: "Internal error" });
 });

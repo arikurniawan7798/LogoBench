@@ -20,7 +20,8 @@ function aiMessage(e: AiError): string {
 }
 
 /** Central Express error middleware: AI errors, upload/project errors, settings validation, fallback 500. */
-export function errorHandler(err: any, _req: Request, res: Response, _next: NextFunction): void {
+export function errorHandler(err: any, _req: Request, res: Response, next: NextFunction): void {
+  if (res.headersSent) return next(err);
   if (err instanceof AiError) {
     if (err.code === "RATE_LIMIT" && err.retryAfterSec) res.setHeader("Retry-After", String(err.retryAfterSec));
     res.status(AI_STATUS[err.code]).json({
@@ -42,6 +43,16 @@ export function errorHandler(err: any, _req: Request, res: Response, _next: Next
   }
   if (err instanceof NotFoundError) {
     res.status(404).json({ error: err.message });
+    return;
+  }
+  // body-parser errors (carry a `type`): fixed messages only, never the parser's text (may quote the body).
+  if (typeof err?.type === "string" && err.status >= 400 && err.status < 500) {
+    const msg =
+      err.type === "entity.parse.failed" ? "Invalid JSON body"
+      : err.status === 413 ? "Request body too large"
+      : err.status === 415 ? "Unsupported media type"
+      : "Bad request";
+    res.status(err.status).json({ error: msg });
     return;
   }
   if (err?.status === 400) {

@@ -37,4 +37,15 @@ describe("Store", () => {
     expect(await store.list("missing")).toEqual([]);
     expect(store.newId()).toMatch(/^[0-9a-f-]{36}$/);
   });
+
+  it("writes atomically: no leftover temp files, overwrite works, failed write keeps target intact", async () => {
+    await store.writeFile("a/f.txt", Buffer.from("one"));
+    await store.writeFile("a/f.txt", Buffer.from("two"));
+    expect((await store.list("a")).sort()).toEqual(["f.txt"]);
+    expect((await store.readFile("a/f.txt")).toString()).toBe("two");
+    // Make the rename fail (target is a directory): original content untouched, temp cleaned.
+    await fs.mkdir(path.join(dir, "a/d"), { recursive: true });
+    await expect(store.writeFile("a/d", Buffer.from("x"))).rejects.toThrow();
+    expect((await store.list("a")).sort()).toEqual(["d", "f.txt"]);
+  });
 });
