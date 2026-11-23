@@ -207,7 +207,7 @@ describe("advanced routes", () => {
     expect(res.status).toBe(200);
     expect(res.headers["content-type"]).toContain("application/pdf");
     const cd = res.headers["content-disposition"] as string;
-    expect(cd).toMatch(/^attachment; filename="[A-Za-z0-9._ -]+\.pdf"; filename*=UTF-8''[A-Za-z0-9%._-]+$/);
+    expect(cd).toMatch(/^attachment; filename="[A-Za-z0-9._ -]+\.pdf"; filename\*=UTF-8''[A-Za-z0-9%._-]+$/);
     expect(res.headers["x-injected"]).toBeUndefined();
     expect((res.body as Buffer).subarray(0, 4).toString()).toBe("%PDF");
   });
