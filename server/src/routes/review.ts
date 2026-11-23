@@ -3,9 +3,9 @@ import { z } from "zod";
 import type { AppContext } from "../context.js";
 import { NotFoundError } from "../projects.js";
 import { readReview } from "../review/cache.js";
-import { reviewLogo } from "../review/review.js";
+import { reviewLogo, MAX_BRIEF_CHARS } from "../review/review.js";
 
-const body = z.object({ brief: z.string().optional(), force: z.boolean().optional() });
+const body = z.object({ brief: z.string().max(MAX_BRIEF_CHARS).optional(), force: z.boolean().optional() });
 
 export function reviewRouter(ctx: AppContext): Router {
   const r = Router({ mergeParams: true });

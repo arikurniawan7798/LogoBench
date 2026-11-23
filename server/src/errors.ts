@@ -4,6 +4,16 @@ import { AiError } from "./ai/provider.js";
 import { NotFoundError, UnsupportedMediaError } from "./projects.js";
 import { SettingsValidationError } from "./settings.js";
 
+/** Typed error carrying an HTTP status and a client-safe message. */
+export class HttpError extends Error {
+  readonly status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "HttpError";
+    this.status = status;
+  }
+}
+
 const AI_STATUS = { NO_KEY: 401, BAD_KEY: 401, RATE_LIMIT: 429, BAD_MODEL: 422, BAD_OUTPUT: 422, NETWORK: 502 } as const;
 
 function aiMessage(e: AiError): string {
@@ -27,6 +37,10 @@ export function errorHandler(err: any, _req: Request, res: Response, next: NextF
     res.status(AI_STATUS[err.code]).json({
       error: { code: err.code, message: aiMessage(err), ...(err.retryAfterSec ? { retryAfterSec: err.retryAfterSec } : {}) },
     });
+    return;
+  }
+  if (err instanceof HttpError) {
+    res.status(err.status).json({ error: err.message });
     return;
   }
   if (err instanceof SettingsValidationError) {
