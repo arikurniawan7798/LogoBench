@@ -35,9 +35,16 @@ const DECL_RE = /(?<![\w-])(fill|stroke)(\s*:\s*)([^;"'}]*)/gi;
 const STYLE_ATTR_RE = /(?<![\w:-])style(\s*=\s*)(["'])(.*?)\2/gis;
 const STYLE_EL_RE = /(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi;
 
-/** Calls `fn(colorValue)` for every fill/stroke value (attribute, style attribute, <style> block); replaces with the result when non-null. */
+const IGNORED = /^(none|transparent|inherit|initial|unset|revert|context-fill|context-stroke)$/i;
+
+/** Calls `fn(colorValue)` for every fill/stroke value (attribute, style attribute, <style> block); replaces with the result when non-null. A trailing `!important` is preserved. */
 function mapValues(svg: string, fn: (value: string) => string | null): string {
-  const rep = (v: string) => fn(v) ?? v;
+  const rep = (raw: string) => {
+    const m = /^(.*?)(\s*!\s*important\s*)$/is.exec(raw);
+    const [value, bang] = m ? [m[1], " !important"] : [raw, ""];
+    const out = fn(value.trim());
+    return out === null ? raw : `${out}${bang}`;
+  };
   const decls = (css: string) => css.replace(DECL_RE, (_m, p: string, sep: string, v: string) => `${p}${sep}${rep(v.trim())}`);
   return svg
     .replace(ATTR_RE, (_m, p: string, eq: string, q: string, v: string) => `${p}${eq}${q}${rep(v)}${q}`)
@@ -56,19 +63,29 @@ export function collectColors(svg: string): string[] {
   return [...seen];
 }
 
-export function recolorSvg(svg: string, map: Record<string, string>): { svg: string; warnings: string[] } {
-  const colors = checkMap(map);
+function recolor(svg: string, colors: Map<string, string>, currentColor?: string): { svg: string; warnings: string[] } {
   const warnings: string[] = [];
   if (/<(\w+:)?(linearGradient|radialGradient)\b/i.test(svg)) warnings.push("Gradients are not recolored and were left unchanged.");
   if (/<(\w+:)?pattern\b/i.test(svg)) warnings.push("Patterns are not recolored and were left unchanged.");
   if (/<(\w+:)?image\b/i.test(svg)) warnings.push("Embedded images are not recolored and were left unchanged.");
   let urlFill = false;
+  const unsupported = new Set<string>();
   const out = mapValues(svg, (v) => {
-    if (/^url\(/i.test(v)) urlFill = true;
+    if (/^url\(/i.test(v)) {
+      urlFill = true;
+      return null;
+    }
+    if (/^currentcolor$/i.test(v)) return currentColor ?? null;
+    if (IGNORED.test(v)) return null;
     const c = normalizeColor(v);
-    return c && colors.has(c) ? colors.get(c)! : null;
+    if (!c) {
+      unsupported.add(v.replace(/[^ -~]/g, "?").slice(0, 40));
+      return null;
+    }
+    return colors.has(c) ? colors.get(c)! : null;
   });
   if (urlFill && !warnings.some((w) => w.startsWith("Gradients"))) warnings.push("Fills or strokes that reference url(#...) paints were left unchanged.");
+  for (const u of unsupported) warnings.push(`Unsupported color value "${u}" was left unchanged (only hex and basic named colors are recolored).`);
   try {
     return { svg: sanitizeSvg(out), warnings };
   } catch {
@@ -76,11 +93,15 @@ export function recolorSvg(svg: string, map: Record<string, string>): { svg: str
   }
 }
 
-/** Every simple solid color becomes `hex`; the root gets `fill=hex` when it has none so un-filled shapes follow. */
+export function recolorSvg(svg: string, map: Record<string, string>): { svg: string; warnings: string[] } {
+  return recolor(svg, checkMap(map));
+}
+
+/** Every simple solid color (and currentColor) becomes `hex`; the root gets `fill=hex` when it has none so un-filled shapes follow. */
 export function monochromeSvg(svg: string, hex: string): { svg: string; warnings: string[] } {
-  const map: Record<string, string> = {};
-  for (const c of collectColors(svg)) map[c] = hex;
-  const r = recolorSvg(svg, map);
+  const map = new Map<string, string>();
+  for (const c of collectColors(svg)) map.set(c, hex);
+  const r = recolor(svg, map, hex);
   const root = /<svg\b[^>]*>/i.exec(r.svg);
   if (!root || /(?<![\w:-])fill\s*=/i.test(root[0])) return r;
   const patched = r.svg.slice(0, root.index) + root[0].replace(/<svg\b/i, `<svg fill="${hex}"`) + r.svg.slice(root.index + root[0].length);

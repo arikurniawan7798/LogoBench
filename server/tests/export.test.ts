@@ -7,7 +7,7 @@ import sharp from "sharp";
 import { unzipSync } from "fflate";
 import { XMLParser } from "fast-xml-parser";
 import { createApp } from "../src/app.js";
-import { recolorSvg } from "../src/export/recolor.js";
+import { recolorSvg, monochromeSvg } from "../src/export/recolor.js";
 import { buildExportZip } from "../src/export/package.js";
 import { makeFavicons } from "../src/export/favicon.js";
 import { makeBackground } from "../src/export/background.js";
@@ -65,6 +65,39 @@ describe("recolorSvg", () => {
   });
 });
 
+describe("recolorSvg edge cases and monochrome variants", () => {
+  const NS = 'xmlns="http://www.w3.org/2000/svg"';
+  it("recolors !important declarations in a <style> block and preserves !important", () => {
+    const r = recolorSvg(`<svg ${NS}><style>.a{fill:#fff !important;stroke: #000000!important}</style><rect class="a" fill="#fff"/></svg>`, { "#ffffff": "#112233", "#000000": "#445566" });
+    expect(r.svg).toContain("fill:#112233 !important");
+    expect(r.svg).toContain("stroke: #445566 !important");
+    expect(r.warnings).toEqual([]);
+  });
+  it("swaps simultaneously (A->B and B->A)", () => {
+    const r = recolorSvg(`<svg ${NS}><rect fill="#ff0000"/><rect fill="#0000ff"/></svg>`, { "#ff0000": "#0000ff", "#0000ff": "#ff0000" });
+    expect(r.svg).toContain('<rect fill="#0000ff"/><rect fill="#ff0000"/>');
+  });
+  it("warns on unsupported rgb()/hsl() values and leaves them unchanged", () => {
+    const r = recolorSvg(`<svg ${NS}><rect fill="rgb(255,0,0)"/><circle style="stroke:hsl(10,50%,50%)"/></svg>`, {});
+    expect(r.warnings.filter((w) => /Unsupported color value/.test(w))).toHaveLength(2);
+    expect(r.svg).toContain("rgb(255,0,0)");
+  });
+  it("monochrome replaces currentColor (attribute and style) but keeps fill=none", () => {
+    const r = monochromeSvg(`<svg ${NS}><path fill="currentColor" stroke="none"/><path style="fill:currentColor"/><path fill="none"/></svg>`, "#ffffff");
+    expect(r.svg).not.toMatch(/currentColor/i);
+    expect(r.svg).toContain('fill="#ffffff"');
+    expect(r.svg).toContain("fill:#ffffff");
+    expect(r.svg).toContain('stroke="none"');
+    expect(r.svg).toContain('fill="none"');
+  });
+  it("shapes with no fill attribute render black / white in the monochrome variants", async () => {
+    const src = `<svg ${NS} viewBox="0 0 10 10" width="10" height="10"><path d="M0 0h10v10H0z"/></svg>`;
+    const px = async (svg: string) => [...(await sharp(Buffer.from(svg)).flatten({ background: "#808080" }).raw().toBuffer()).subarray(5 * 10 * 3 + 15, 5 * 10 * 3 + 18)];
+    expect(await px(monochromeSvg(src, "#000000").svg)).toEqual([0, 0, 0]);
+    expect(await px(monochromeSvg(src, "#ffffff").svg)).toEqual([255, 255, 255]);
+  });
+});
+
 describe("buildExportZip", () => {
   it("SVG project contains the expected fixed names", async () => {
     const id = await mk("Secret Name", Buffer.from(SVG));
@@ -95,6 +128,14 @@ describe("buildExportZip", () => {
     expect(skipped.every((s) => s.endsWith("needs an SVG source"))).toBe(true);
     expect(skipped.some((s) => s.startsWith("logo-white.svg"))).toBe(true);
     expect(Buffer.from(entries["README.txt"]).toString()).toContain("needs an SVG source");
+  });
+  it("surfaces recolor warnings in README.txt but not in skipped", async () => {
+    const id = await mk("W", Buffer.from(GRAD.replace("</svg>", '<rect fill="rgb(1,2,3)"/></svg>')));
+    const { zip, skipped } = await buildExportZip(ctx, id, {});
+    const readme = Buffer.from(unzipSync(new Uint8Array(zip))["README.txt"]).toString();
+    expect(readme).toMatch(/Gradients are not recolored/);
+    expect(readme).toMatch(/Unsupported color value "rgb\(1,2,3\)"/);
+    expect(skipped).toEqual([]);
   });
   it("unknown project is 404", async () => {
     expect((await request(app).get("/api/projects/nope/export.zip")).status).toBe(404);
