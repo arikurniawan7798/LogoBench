@@ -28,3 +28,13 @@ export const reviewSchema = z.object({
 });
 
 export type ReviewResult = z.infer<typeof reviewSchema>;
+
+export const advancedSchema = reviewSchema.extend({
+  fixes: z
+    .array(z.object({ issue: z.string().trim().min(1), fix: z.string().trim().min(1), priority: z.enum(["high", "medium", "low"]) }))
+    .max(12),
+  checklist: z.array(z.object({ item: z.string().trim().min(1), done: z.boolean() })).max(15),
+  presentationIdeas: z.array(z.string().trim().min(1)).max(8),
+});
+
+export type AdvancedReview = z.infer<typeof advancedSchema>;

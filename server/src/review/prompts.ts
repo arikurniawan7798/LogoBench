@@ -23,3 +23,18 @@ ${b}
 </brief>`
     : "Review the attached logo. No brief was provided.";
 }
+
+export const ADVANCED_PROMPT_VERSION = "advanced-v1";
+
+export const ADVANCED_SYSTEM = [
+  REVIEW_SYSTEM.replace("Respond with JSON only.", "").trimEnd(),
+  "Additionally, produce a practical improvement plan, all grounded only in what is visible:",
+  "fixes: up to 12 items, each with the issue seen, a concrete fix, and a priority of high, medium or low.",
+  "checklist: up to 15 short pre-delivery checks for this logo (item, done); set done to true only if the image itself clearly satisfies the check.",
+  "presentationIdeas: up to 8 short ideas for presenting the logo to a client.",
+  "Respond with JSON only.",
+].join("\n");
+
+export function advancedPrompt(brief: string): string {
+  return reviewPrompt(brief).replace("Review the attached logo.", "Give an in-depth review and improvement plan for the attached logo.");
+}
