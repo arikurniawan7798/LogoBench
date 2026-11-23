@@ -18,8 +18,9 @@ export function rgbToCmyk([r, g, b]: RGB): CMYK {
   const rr = r / 255, gg = g / 255, bb = b / 255;
   const k = 1 - Math.max(rr, gg, bb);
   if (k >= 1) return [0, 0, 0, 100];
-  const f = (v: number) => Math.round(((1 - v - k) / (1 - k)) * 100);
-  return [f(rr), f(gg), f(bb), Math.round(k * 100)];
+  // `+ 0` normalises -0 to 0.
+  const f = (v: number) => Math.round(((1 - v - k) / (1 - k)) * 100) + 0;
+  return [f(rr), f(gg), f(bb), Math.round(k * 100) + 0];
 }
 
 /** h in degrees, s and l in 0-1. */

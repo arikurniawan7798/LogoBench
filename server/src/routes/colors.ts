@@ -1,7 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { z } from "zod";
 import type { AppContext } from "../context.js";
-import { getPalette, normalizePalette, savePalette, suggestPalette } from "../colors/service.js";
+import { getPalette, hasSavedPalette, normalizePalette, savePalette, suggestPalette } from "../colors/service.js";
 import { MAX_BRIEF_CHARS } from "../review/review.js";
 
 const suggestBody = z.object({ brief: z.string().max(MAX_BRIEF_CHARS).optional() });
@@ -39,7 +39,9 @@ export function colorsRouter(ctx: AppContext): Router {
       res.status(422).json({ error: `Invalid request: ${parsed.error.issues[0]?.message ?? "bad body"}` });
       return;
     }
-    res.json({ ...(await suggestPalette(ctx, req.params.id as string, parsed.data)), note: NOTE });
+    const id = req.params.id as string;
+    const replacedSaved = await hasSavedPalette(ctx, id); // suggest overwrites a saved/edited palette
+    res.json({ ...(await suggestPalette(ctx, id, parsed.data)), replacedSaved, note: NOTE });
   }));
   return r;
 }

@@ -3,6 +3,8 @@ import { HttpError } from "../errors.js";
 import { rasterizeToPng } from "../image/raster.js";
 import { colorDistance, rgbToHex, type RGB } from "./convert.js";
 
+/** Clusters below this share of visible pixels (anti-aliasing slivers) are folded into their nearest kept cluster. */
+export const MIN_SHARE = 0.01;
 const SIZE = 128;
 const MIN_ALPHA = 16;
 const MERGE_DISTANCE = 60;
@@ -52,5 +54,13 @@ export async function extractPalette(bytes: Buffer, mime: string, n = 6): Promis
     else clusters.push({ count: b.count, mean });
   }
   clusters.sort((a, c) => c.count - a.count);
-  return clusters.slice(0, Math.max(1, n)).map((c) => ({ hex: rgbToHex(c.mean), share: c.count / total }));
+  // Fold slivers into the nearest kept cluster (never drop below one color).
+  const kept = clusters.filter((c, i) => i === 0 || c.count / total >= MIN_SHARE);
+  for (const c of clusters) {
+    if (kept.includes(c)) continue;
+    const near = kept.reduce((b, k) => (colorDistance(k.mean, c.mean) < colorDistance(b.mean, c.mean) ? k : b));
+    near.count += c.count;
+  }
+  kept.sort((a, c) => c.count - a.count);
+  return kept.slice(0, Math.max(1, n)).map((c) => ({ hex: rgbToHex(c.mean), share: c.count / total }));
 }

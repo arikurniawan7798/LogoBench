@@ -33,7 +33,22 @@ export const paletteSchema = z.object({
 export function normalizePalette(input: unknown): BrandPalette {
   const p = paletteSchema.parse(input);
   const fix = (s: z.infer<typeof swatchSchema>) => makeSwatch(s.hex, s.name?.trim() || undefined);
-  return { main: fix(p.main), support: p.support.map(fix), neutral: p.neutral.map(fix), ...(p.rationale ? { rationale: p.rationale } : {}) };
+  // A hex may appear once: precedence main > support > neutral, first occurrence within a list.
+  const seen = new Set<string>([p.main.hex.toUpperCase()]);
+  const unique = (list: z.infer<typeof swatchSchema>[]) =>
+    list.filter((s) => {
+      const h = s.hex.toUpperCase();
+      if (seen.has(h)) return false;
+      seen.add(h);
+      return true;
+    });
+  const support = unique(p.support);
+  const neutral = unique(p.neutral);
+  return { main: fix(p.main), support: support.map(fix), neutral: neutral.map(fix), ...(p.rationale ? { rationale: p.rationale } : {}) };
+}
+
+export async function hasSavedPalette(ctx: AppContext, projectId: string): Promise<boolean> {
+  return (await ctx.store.readJson<unknown>(colorsPath(projectId))) !== null;
 }
 
 export async function savePalette(ctx: AppContext, projectId: string, palette: BrandPalette): Promise<void> {
@@ -81,7 +96,8 @@ Candidate colors extracted from the image (data): ${candidates.join(", ")}
 ${fenceBrief(brief)}`;
 }
 
-/** AI proposes names, rationale and main-color choice; the deterministic palette is the base and every AI field is validated, falling back per-field. Result is saved. */
+/** NOTE: this OVERWRITES any saved/edited colors.json with a palette rebuilt from extraction (explicit user action; the route reports replacedSaved).
+ * AI proposes names, rationale and main-color choice; the deterministic palette is the base and every AI field is validated, falling back per-field. Result is saved. */
 export async function suggestPalette(ctx: AppContext, projectId: string, opts: { brief?: string } = {}): Promise<BrandPalette> {
   const { meta, bytes } = await ctx.projects.latestVersion(ctx, projectId);
   const base = assignRoles(await extractPalette(bytes, meta.mime));

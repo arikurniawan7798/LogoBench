@@ -1,3 +1,4 @@
+import { MIN_SHARE } from "./extract.js";
 import { colorDistance, hexToRgb, hslToRgb, rgbToCmyk, rgbToHex, rgbToHsl, type CMYK, type RGB } from "./convert.js";
 
 /** cmyk is a naive conversion: approximate, not print-accurate. */
@@ -14,6 +15,7 @@ export function makeSwatch(hex: string, name?: string): Swatch {
   return { hex: h, rgb, cmyk: rgbToCmyk(rgb), cmykApproximate: true, ...(name ? { name } : {}) };
 }
 
+const BACKDROP_L = 0.93; // HSL lightness at/above which a color counts as a near-white backdrop
 const SAT_MIN = 0.2; // below this (HSL saturation) a color counts as neutral
 const SUPPORT_MIN_DIST = 70;
 
@@ -29,12 +31,15 @@ export function assignRoles(colors: { hex: string; share: number }[]): BrandPale
   if (items.length === 0) return defaultPalette();
 
   const chromatic = items.filter((c) => c.sat >= SAT_MIN);
-  const pool = chromatic.length ? chromatic : items;
+  // A near-white backdrop (typical opaque JPG/PNG logo) is not the brand color unless nothing else exists.
+  const nonBackdrop = items.filter((c) => c.l < BACKDROP_L);
+  const preferred = chromatic.filter((c) => c.l < BACKDROP_L);
+  const pool = preferred.length ? preferred : chromatic.length ? chromatic : nonBackdrop.length ? nonBackdrop : items;
   const main = pool.reduce((best, c) => (c.share * (0.25 + c.sat) > best.share * (0.25 + best.sat) ? c : best));
 
   const support: typeof items = [];
   for (const c of chromatic) {
-    if (c === main) continue;
+    if (c === main || c.share < MIN_SHARE) continue;
     if (colorDistance(c.rgb, main.rgb) < SUPPORT_MIN_DIST) continue;
     if (support.some((s) => colorDistance(s.rgb, c.rgb) < SUPPORT_MIN_DIST)) continue;
     support.push(c);

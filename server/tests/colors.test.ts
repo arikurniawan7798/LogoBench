@@ -8,7 +8,7 @@ import { createApp } from "../src/app.js";
 import { FakeProvider } from "../src/ai/fake.js";
 import { AiError } from "../src/ai/provider.js";
 import { hexToRgb, rgbToCmyk } from "../src/colors/convert.js";
-import { extractPalette } from "../src/colors/extract.js";
+import { extractPalette, MIN_SHARE } from "../src/colors/extract.js";
 import { assignRoles, defaultPalette } from "../src/colors/roles.js";
 import { suggestPalette } from "../src/colors/service.js";
 import type { AppContext } from "../src/context.js";
@@ -43,6 +43,58 @@ describe("convert", () => {
     expect(rgbToCmyk([255, 0, 0])).toEqual([0, 100, 100, 0]);
     expect(rgbToCmyk([0, 0, 0])).toEqual([0, 0, 0, 100]);
     expect(rgbToCmyk([255, 255, 255])).toEqual([0, 0, 0, 0]);
+  });
+});
+
+describe("convert edge cases", () => {
+  it("near-black cmyk and never -0", () => {
+    expect(rgbToCmyk([1, 1, 1])).toEqual([0, 0, 0, 100]);
+    for (const rgb of [[0, 0, 0], [1, 1, 1], [255, 255, 255], [128, 128, 128], [255, 0, 0], [0, 255, 0]] as [number, number, number][]) {
+      for (const v of rgbToCmyk(rgb)) expect(Object.is(v, -0)).toBe(false);
+    }
+  });
+});
+
+describe("backgrounds and edges", () => {
+  const onWhite = async (mark: { r: number; g: number; b: number }, fmt: "png" | "jpeg") => {
+    const img = sharp({ create: { width: 128, height: 128, channels: 3, background: { r: 255, g: 255, b: 255 } } }).composite([
+      { input: await solid(mark, 48, 48), top: 40, left: 40 },
+    ]);
+    return fmt === "png" ? img.png().toBuffer() : img.jpeg({ quality: 95 }).toBuffer();
+  };
+
+  it("black mark on opaque white PNG: main is black, white is not main", async () => {
+    const p = assignRoles(await extractPalette(await onWhite({ r: 0, g: 0, b: 0 }, "png"), "image/png"));
+    expect(p.main.hex).toBe("#000000");
+  });
+
+  it("red mark on opaque white JPEG: main is red", async () => {
+    const p = assignRoles(await extractPalette(await onWhite({ r: 255, g: 0, b: 0 }, "jpeg"), "image/jpeg"));
+    const [r, g, b] = p.main.rgb;
+    expect(r).toBeGreaterThan(220);
+    expect(g).toBeLessThan(40);
+    expect(b).toBeLessThan(40);
+  });
+
+  it("solid white image still yields white main", async () => {
+    const p = assignRoles(await extractPalette(await solid({ r: 255, g: 255, b: 255 }), "image/png"));
+    expect(p.main.hex).toBe("#FFFFFF");
+    expect(p.neutral.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("anti-aliased edges leave no sliver clusters", async () => {
+    const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="#fff"/><circle cx="100" cy="100" r="70" fill="#e00000"/></svg>');
+    const png = await sharp(svg).png().toBuffer();
+    const cols = await extractPalette(png, "image/png");
+    if (cols.length > 1) for (const c of cols) expect(c.share).toBeGreaterThanOrEqual(MIN_SHARE);
+    expect(cols.reduce((a, c) => a + c.share, 0)).toBeLessThanOrEqual(1.0001);
+    const p = assignRoles(cols);
+    for (const s of p.support) expect(cols.find((c) => c.hex === s.hex)!.share).toBeGreaterThanOrEqual(MIN_SHARE);
+  });
+
+  it("assignRoles ignores support slivers below MIN_SHARE", () => {
+    const p = assignRoles([{ hex: "#0000FF", share: 0.9 }, { hex: "#FF8000", share: 0.002 }]);
+    expect(p.support).toEqual([]);
   });
 });
 
@@ -130,6 +182,52 @@ describe("colors routes", () => {
     const got = await request(app).get(`/api/projects/${id}/colors`);
     expect(got.body.main.name).toBe("Leaf");
     expect(got.body.support[0].hex).toBe("#0000FF");
+  });
+
+  it("PUT de-duplicates hex across lists (main > support > neutral)", async () => {
+    const id = await mkProject(await solid({ r: 1, g: 2, b: 3 }));
+    const body = {
+      main: sw("#ff0000"),
+      support: [sw("#FF0000"), sw("#00ff00"), sw("#00FF00")],
+      neutral: [sw("#00ff00"), sw("#111111"), sw("#111111")],
+    };
+    const put = await request(app).put(`/api/projects/${id}/colors`).send(body);
+    expect(put.status).toBe(200);
+    expect(put.body.support.map((s: any) => s.hex)).toEqual(["#00FF00"]);
+    expect(put.body.neutral.map((s: any) => s.hex)).toEqual(["#111111"]);
+  });
+
+  it("suggest reports replacedSaved when a saved palette existed", async () => {
+    const id = await mkProject(await redCircleOnTransparent());
+    provider.enqueue({ swatches: [] }, { swatches: [] });
+    const first = await request(app).post(`/api/projects/${id}/colors/suggest`).send({});
+    expect(first.body.replacedSaved).toBe(false);
+    const put = await request(app).put(`/api/projects/${id}/colors`).send({ main: sw("#123456"), support: [], neutral: [] });
+    expect(put.status).toBe(200);
+    const second = await request(app).post(`/api/projects/${id}/colors/suggest`).send({});
+    expect(second.body.replacedSaved).toBe(true);
+    expect(second.body.main.hex).toBe("#FF0000");
+  });
+
+  it("suggest can promote an extracted support color to main", async () => {
+    const png = await sharp({ create: { width: 64, height: 64, channels: 3, background: { r: 0, g: 0, b: 255 } } })
+      .composite([{ input: await solid({ r: 255, g: 128, b: 0 }, 64, 16), top: 0, left: 0 }])
+      .png()
+      .toBuffer();
+    const id = await mkProject(png);
+    provider.enqueue({ main: "#ff8000", swatches: [] });
+    const p = await suggestPalette(ctx, id);
+    expect(p.main.hex).toBe("#FF8000");
+    expect(p.support.map((s) => s.hex)).toContain("#0000FF");
+  });
+
+  it("suggest ignores an AI main that is not an extracted candidate", async () => {
+    const id = await mkProject(await redCircleOnTransparent());
+    provider.enqueue({ main: "#123456", swatches: [{ hex: "#123456", name: "Invented" }] });
+    const p = await suggestPalette(ctx, id);
+    expect(p.main.hex).toBe("#FF0000");
+    const all = [p.main, ...p.support, ...p.neutral];
+    expect(all.some((s) => s.hex === "#123456" || s.name === "Invented")).toBe(false);
   });
 
   it("PUT rejects bad hex and too many swatches with 422", async () => {
