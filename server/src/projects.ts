@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import type { AppContext } from "./context.js";
-import { sanitizeSvg } from "./svg.js";
+import { sanitizeSvg, scanProlog, SvgDtdError } from "./svg.js";
 
 export type ProjectVersion = {
   id: string;
@@ -18,12 +18,17 @@ export class NotFoundError extends Error {}
 
 const EXT: Record<string, string> = { "image/svg+xml": "svg", "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
 
+const SNIFF_BYTES = 64 * 1024;
+
 export function sniffMime(b: Buffer): string | null {
   if (b.length >= 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
   if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
   if (b.length >= 12 && b.subarray(0, 4).toString("latin1") === "RIFF" && b.subarray(8, 12).toString("latin1") === "WEBP") return "image/webp";
-  const head = b.subarray(0, 2048).toString("utf8").replace(/^﻿/, "");
-  if (/^\s*(<\?xml[^>]*\?>\s*)?(<!--[\s\S]*?-->\s*)*(<!DOCTYPE[^>]*>\s*)?<svg[\s>]/i.test(head)) return "image/svg+xml";
+  // Walk the prolog (XML declaration, comments, a DOCTYPE with an internal subset as Illustrator writes it) within
+  // the first 64 KB, then require the root element to be <svg>.
+  const head = b.subarray(0, SNIFF_BYTES).toString("utf8");
+  const prolog = scanProlog(head);
+  if (prolog && /^<svg[\s>/]/i.test(head.slice(prolog.rootStart, prolog.rootStart + 5))) return "image/svg+xml";
   return null;
 }
 
@@ -45,8 +50,8 @@ export function prepareImage(buffer: Buffer): { mime: string; bytes: Buffer } {
   if (mime === "image/svg+xml") {
     try {
       bytes = Buffer.from(sanitizeSvg(buffer.toString("utf8")), "utf8");
-    } catch {
-      throw new UnsupportedMediaError("Invalid SVG");
+    } catch (e) {
+      throw new UnsupportedMediaError(e instanceof SvgDtdError ? e.message : "Invalid SVG");
     }
   }
   return { mime, bytes };
