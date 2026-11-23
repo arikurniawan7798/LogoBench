@@ -4,9 +4,14 @@ import { AiError } from "../ai/provider.js";
 import { aiMessage, HttpError } from "../errors.js";
 import { NotFoundError } from "../projects.js";
 import { reviewLogo } from "../review/review.js";
-import { getPalette, hasSavedPalette, savePalette, suggestPalette } from "../colors/service.js";
-import { defaultPalette } from "../colors/roles.js";
-import { defaultTypeSystem, hasSavedType, saveType, suggestTypography } from "../type/pairings.js";
+import { hasUserPalette, savePalette, suggestPalette } from "../colors/service.js";
+import { assignRoles, defaultPalette } from "../colors/roles.js";
+import { extractPalette } from "../colors/extract.js";
+import { savedSource } from "../provenance.js";
+import { defaultTypeSystem, hasUserType, saveType, suggestTypography } from "../type/pairings.js";
+
+const KEPT_PALETTE = "Skipped: kept your saved palette (Create identity never overwrites colors you saved).";
+const KEPT_TYPE = "Skipped: kept your saved type system (Create identity never overwrites type you saved).";
 import type { MockupKind } from "../mockups/render.js";
 import { buildIdentityZip, renderProjectMockups } from "./bundle.js";
 
@@ -64,14 +69,18 @@ export async function runCreateIdentity(
     };
     let mockups: { kind: MockupKind; png: Buffer }[] | undefined;
 
-    const steps: Record<StepName, () => Promise<{ note?: string } | void>> = {
+    // Colors and type the user saved/edited are never overwritten: those steps are skipped with a note.
+    // AI-suggested or fallback results from earlier runs are replaced.
+    const steps: Record<StepName, () => Promise<{ note?: string; skipped?: boolean } | void>> = {
       review: async () => {
         await reviewLogo(ctx, projectId, {});
       },
       colors: async () => {
+        if (await hasUserPalette(ctx, projectId)) return { skipped: true, note: KEPT_PALETTE };
         await suggestPalette(ctx, projectId);
       },
       type: async () => {
+        if (await hasUserType(ctx, projectId)) return { skipped: true, note: KEPT_TYPE };
         const { fallbacks } = await suggestTypography(ctx, projectId);
         if (fallbacks.length) return { note: `Unknown font suggested for ${fallbacks.join(", ")}; picked a curated font instead.` };
       },
@@ -85,18 +94,24 @@ export async function runCreateIdentity(
     };
     const fallbacks: Partial<Record<StepName, () => Promise<string>>> = {
       colors: async () => {
-        if (await hasSavedPalette(ctx, projectId)) return "AI colors unavailable; kept your saved palette.";
+        const source = await savedSource(ctx, projectId, "colors");
+        if (source === "user") return "AI colors unavailable; kept your saved palette.";
+        if (source === "ai") return "AI colors unavailable; kept the palette suggested earlier.";
         try {
-          await savePalette(ctx, projectId, await getPalette(ctx, projectId));
+          // Extract fresh from the latest logo (an earlier fallback palette may be from an older version).
+          const { meta, bytes } = await ctx.projects.latestVersion(ctx, projectId);
+          await savePalette(ctx, projectId, assignRoles(await extractPalette(bytes, meta.mime)), "fallback");
           return "AI colors unavailable; used the colors extracted from the logo.";
         } catch {
-          await savePalette(ctx, projectId, defaultPalette());
+          await savePalette(ctx, projectId, defaultPalette(), "fallback");
           return "AI colors unavailable and the logo colors could not be extracted; used a neutral default palette.";
         }
       },
       type: async () => {
-        if (await hasSavedType(ctx, projectId)) return "AI typography unavailable; kept your saved type system.";
-        await saveType(ctx, projectId, defaultTypeSystem());
+        const source = await savedSource(ctx, projectId, "type");
+        if (source === "user") return "AI typography unavailable; kept your saved type system.";
+        if (source === "ai") return "AI typography unavailable; kept the type system suggested earlier.";
+        await saveType(ctx, projectId, defaultTypeSystem(), "fallback");
         return "AI typography unavailable; used the default curated pairing.";
       },
     };
@@ -107,7 +122,7 @@ export async function runCreateIdentity(
       let result: StepResult;
       try {
         const out = await steps[step]();
-        result = { step, status: "ok", ...(out?.note ? { note: out.note } : {}) };
+        result = { step, status: out?.skipped ? "skipped" : "ok", ...(out?.note ? { note: out.note } : {}) };
       } catch (e) {
         result = { step, status: "failed", error: stepError(e) };
         const fb = fallbacks[step];

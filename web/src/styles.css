@@ -1018,6 +1018,13 @@ a.btn {
   background: var(--danger-bg);
   color: var(--danger);
 }
+.step-skipped {
+  border-style: dashed;
+}
+.step-skipped .step-icon {
+  background: var(--surface-2);
+  color: var(--muted);
+}
 .step-running {
   border-color: var(--accent);
 }

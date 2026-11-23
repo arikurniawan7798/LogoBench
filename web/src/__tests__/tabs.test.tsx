@@ -206,6 +206,41 @@ describe("IdentityTab", () => {
     expect(screen.getByRole("button", { name: /create identity/i })).toBeEnabled();
   });
 
+  it("shows skipped colors/type steps with their 'kept your saved' notes, and the copy says saved work is kept", async () => {
+    const keptPalette = "Skipped: kept your saved palette (Create identity never overwrites colors you saved).";
+    const keptType = "Skipped: kept your saved type system (Create identity never overwrites type you saved).";
+    const results = [
+      { step: "review", status: "ok" },
+      { step: "colors", status: "skipped", note: keptPalette },
+      { step: "type", status: "skipped", note: keptType },
+      { step: "mockups", status: "ok" },
+      { step: "identity", status: "ok" },
+    ];
+    const events = [
+      ...results.flatMap((r) => [{ type: "start", step: r.step }, { type: "end", ...r }]),
+      { type: "done", results },
+    ];
+    mockFetch({ "POST /api/projects/p1/create-identity": () => streamResponse([events.map((e) => `data: ${JSON.stringify(e)}
+
+`).join("")]) });
+    const user = userEvent.setup();
+    render(<IdentityTab projectId="p1" />);
+    expect(screen.getByText(/colors and type you saved are kept/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /create identity/i }));
+    await screen.findByRole("link", { name: /download identity/i });
+
+    const steps = screen.getByRole("list", { name: /steps/i });
+    const colors = within(steps).getByRole("listitem", { name: /colors/i });
+    expect(colors).toHaveClass("step-skipped");
+    expect(colors).toHaveTextContent(/skipped/i);
+    expect(colors).toHaveTextContent(keptPalette);
+    expect(colors).not.toHaveTextContent(/failed/i);
+    const type = within(steps).getByRole("listitem", { name: /type/i });
+    expect(type).toHaveTextContent(keptType);
+    expect(screen.getByRole("status")).toHaveTextContent(/3 of 5 steps done, 2 skipped/i);
+  });
+
   it("aborts the running stream when the tab unmounts", async () => {
     const enc = new TextEncoder();
     let signal: AbortSignal | undefined;

@@ -100,6 +100,58 @@ describe("runCreateIdentity", () => {
     expect((await getType(ctx, id)).heading).toBe("Lora");
   });
 
+  it("a palette and type system the user saved are kept on the success path: steps skipped, files unchanged, no AI calls for them", async () => {
+    const provider = new FakeProvider([REVIEW]);
+    const app = setup(provider);
+    const id = await mk();
+    const palette = (await request(app).get(`/api/projects/${id}/colors`)).body;
+    palette.main.name = "My Red";
+    expect((await request(app).put(`/api/projects/${id}/colors`).send(palette)).status).toBe(200);
+    const mine = { heading: "Lora", body: "Inter", scale: (await getType(ctx, id)).scale };
+    expect((await request(app).put(`/api/projects/${id}/type`).send(mine)).status).toBe(200);
+    const colorsFile = path.join(dir, "projects", id, "colors.json");
+    const typeFile = path.join(dir, "projects", id, "type.json");
+    const before = [await fs.readFile(colorsFile, "utf8"), await fs.readFile(typeFile, "utf8")];
+
+    const results = await runCreateIdentity(ctx, id, () => {});
+    const by = Object.fromEntries(results.map((r) => [r.step, r]));
+    expect(results.map((r) => r.status)).toEqual(["ok", "skipped", "skipped", "ok", "ok"]);
+    expect(by.colors.note).toMatch(/kept your saved palette/i);
+    expect(by.type.note).toMatch(/kept your saved type system/i);
+    expect(by.colors.error).toBeUndefined();
+    expect(provider.callCount).toBe(1); // review only
+    expect([await fs.readFile(colorsFile, "utf8"), await fs.readFile(typeFile, "utf8")]).toEqual(before);
+  });
+
+  it("a palette/type written by the fallback is not treated as user-saved: the next run replaces it", async () => {
+    setup(new FailingProvider(() => new AiError("NETWORK", "Network error.")));
+    const id = await mk();
+    const first = await runCreateIdentity(ctx, id, () => {});
+    expect(first.find((r) => r.step === "colors")?.note).toMatch(/extracted/i);
+    expect(first.find((r) => r.step === "type")?.note).toMatch(/default/i);
+
+    const provider = new FakeProvider([REVIEW, COLORS, TYPE]);
+    setup(provider);
+    const second = await runCreateIdentity(ctx, id, () => {});
+    expect(second.map((r) => r.status)).toEqual(["ok", "ok", "ok", "ok", "ok"]);
+    expect(provider.callCount).toBe(3);
+    expect((await getType(ctx, id)).heading).toBe("Playfair Display");
+    const colors = await ctx.store.readJson<{ main: { name?: string } }>(`projects/${id}/colors.json`);
+    expect(colors?.main.name).toBe("Signal Red");
+  });
+
+  it("an AI-written palette/type from an earlier run is refreshed (only user edits are protected)", async () => {
+    setup(new FakeProvider([REVIEW, COLORS, TYPE]));
+    const id = await mk();
+    await runCreateIdentity(ctx, id, () => {});
+    const provider = new FakeProvider([COLORS, { heading: "Lora", body: "Inter" }]);
+    setup(provider);
+    const again = await runCreateIdentity(ctx, id, () => {});
+    expect(again.map((r) => r.status)).toEqual(["ok", "ok", "ok", "ok", "ok"]);
+    expect(provider.callCount).toBe(2); // review is cached; colors and type re-run
+    expect((await getType(ctx, id)).heading).toBe("Lora");
+  });
+
   it("steps run in order, never concurrently", async () => {
     let active = 0;
     let maxActive = 0;

@@ -5,6 +5,7 @@ import { rasterizeToPng } from "../image/raster.js";
 import { fenceBrief } from "../review/prompts.js";
 import { readReview } from "../review/cache.js";
 import { resolveBrief } from "../review/review.js";
+import { recordSource, savedSource, type SavedSource } from "../provenance.js";
 
 export const TYPE_PROMPT_VERSION = "type-v1";
 
@@ -128,9 +129,15 @@ const typePath = (id: string) => `projects/${id}/type.json`;
 export async function hasSavedType(ctx: AppContext, projectId: string): Promise<boolean> {
   return (await ctx.store.readJson<unknown>(typePath(projectId))) !== null;
 }
-export async function saveType(ctx: AppContext, projectId: string, sys: TypeSystem): Promise<void> {
+/** True only for a type system the user saved/edited (or a legacy file with no recorded source). */
+export async function hasUserType(ctx: AppContext, projectId: string): Promise<boolean> {
+  return (await savedSource(ctx, projectId, "type")) === "user";
+}
+/** Saves the type system and records who wrote it (default "user": the Type tab's PUT). */
+export async function saveType(ctx: AppContext, projectId: string, sys: TypeSystem, source: SavedSource = "user"): Promise<void> {
   await ctx.projects.get(ctx, projectId);
   await ctx.store.writeJson(typePath(projectId), sys);
+  await recordSource(ctx, projectId, "type", source);
 }
 /** Saved type system if present and still valid, else the deterministic default (not saved). */
 export async function getType(ctx: AppContext, projectId: string): Promise<TypeSystem> {
@@ -233,6 +240,6 @@ export async function suggestTypography(ctx: AppContext, projectId: string, opts
     }
   }
   const typeSystem: TypeSystem = { heading, body, ...(accent ? { accent } : {}), scale: buildScale() };
-  await saveType(ctx, projectId, typeSystem);
+  await saveType(ctx, projectId, typeSystem, "ai");
   return { typeSystem, fallbacks };
 }

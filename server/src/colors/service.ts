@@ -6,6 +6,7 @@ import { resolveBrief } from "../review/review.js";
 import { HEX_RE } from "./convert.js";
 import { extractPalette } from "./extract.js";
 import { assignRoles, makeSwatch, MAX_NEUTRAL, MAX_SUPPORT, type BrandPalette, type Swatch } from "./roles.js";
+import { recordSource, savedSource, type SavedSource } from "../provenance.js";
 
 export const COLORS_PROMPT_VERSION = "colors-v1";
 const NAME_MAX = 40;
@@ -51,9 +52,16 @@ export async function hasSavedPalette(ctx: AppContext, projectId: string): Promi
   return (await ctx.store.readJson<unknown>(colorsPath(projectId))) !== null;
 }
 
-export async function savePalette(ctx: AppContext, projectId: string, palette: BrandPalette): Promise<void> {
+/** True only for a palette the user saved/edited (or a legacy file with no recorded source); AI and fallback palettes are replaceable. */
+export async function hasUserPalette(ctx: AppContext, projectId: string): Promise<boolean> {
+  return (await savedSource(ctx, projectId, "colors")) === "user";
+}
+
+/** Saves the palette and records who wrote it (default "user": the Colors tab's PUT). */
+export async function savePalette(ctx: AppContext, projectId: string, palette: BrandPalette, source: SavedSource = "user"): Promise<void> {
   await ctx.projects.get(ctx, projectId);
   await ctx.store.writeJson(colorsPath(projectId), palette);
+  await recordSource(ctx, projectId, "colors", source);
 }
 
 /** Saved palette if present and still valid, else a deterministic one extracted from the latest logo (not saved). */
@@ -139,6 +147,6 @@ export async function suggestPalette(ctx: AppContext, projectId: string, opts: {
     neutral: base.neutral.map(named),
     ...(rationale ? { rationale } : {}),
   };
-  await savePalette(ctx, projectId, palette);
+  await savePalette(ctx, projectId, palette, "ai");
   return palette;
 }
