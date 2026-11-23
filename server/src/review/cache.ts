@@ -18,3 +18,6 @@ export const readReview = <T = ReviewResult>(ctx: AppContext, projectId: string,
   ctx.store.readJson<StoredReview<T>>(file(projectId, kind));
 export const writeReview = <T = ReviewResult>(ctx: AppContext, projectId: string, r: StoredReview<T>, kind: ReviewKind = "review") =>
   ctx.store.writeJson(file(projectId, kind), r);
+
+/** True when the stored review was made for exactly these image bytes (the cache key starts with sha256(image bytes)). */
+export const isForBytes = (stored: { key: string }, bytes: Buffer): boolean => stored.key.split("|")[0] === sha(bytes);

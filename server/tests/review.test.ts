@@ -237,3 +237,49 @@ describe("image sent to the model", () => {
     expect([meta.width, meta.height]).toEqual([20, 40]);
   });
 });
+
+describe("stored review vs. latest logo version", () => {
+  const zipHtml = async () => {
+    const { unzipSync, strFromU8 } = await import("fflate");
+    const res = await request(app)
+      .get(`/api/projects/${pid}/identity.zip`)
+      .buffer(true)
+      .parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on("data", (c: Buffer) => chunks.push(c));
+        r.on("end", () => cb(null, Buffer.concat(chunks)));
+      });
+    expect(res.status).toBe(200);
+    return strFromU8(unzipSync(new Uint8Array(res.body as Buffer))["index.html"]);
+  };
+
+  it("an unchanged version still returns its review", async () => {
+    provider.enqueue(good());
+    await reviewLogo(ctx, pid, {});
+    const res = await request(app).get(`/api/projects/${pid}/review`);
+    expect(res.status).toBe(200);
+    expect(res.body.result.summary).toBe("Looks solid.");
+  });
+
+  it("a new logo version hides the old review everywhere until it is re-run", async () => {
+    provider.enqueue({ ...good(), summary: "Old version summary." }, { ...good(), summary: "New version summary." });
+    await reviewLogo(ctx, pid, {});
+    expect(await zipHtml()).toContain("Old version summary.");
+    await ctx.projects.addVersion(ctx, pid, { buffer: pngB, originalName: "b.png" });
+
+    const res = await request(app).get(`/api/projects/${pid}/review`);
+    expect(res.status).toBe(404);
+    expect(res.body.error).toContain("No review for the current version");
+
+    const html = await zipHtml();
+    expect(html).not.toContain("Old version summary.");
+    expect(html).not.toContain("Logo review");
+    expect(html).toContain("Review is for an earlier logo version and was left out");
+
+    await reviewLogo(ctx, pid, {});
+    const again = await request(app).get(`/api/projects/${pid}/review`);
+    expect(again.status).toBe(200);
+    expect(again.body.result.summary).toBe("New version summary.");
+    expect(await zipHtml()).not.toContain("earlier logo version");
+  });
+});

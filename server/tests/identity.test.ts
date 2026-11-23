@@ -9,6 +9,7 @@ import type { AppContext } from "../src/context.js";
 import { buildIdentityZip } from "../src/identity/bundle.js";
 import { downloadFont, type FontFetcher } from "../src/identity/fonts.js";
 import { escapeHtml } from "../src/identity/page.js";
+import crypto from "node:crypto";
 import { writeReview } from "../src/review/cache.js";
 import { MOCKUP_KINDS } from "../src/mockups/render.js";
 import { FOOTER_TEXT } from "../src/framing.js";
@@ -170,7 +171,7 @@ describe("identity zip", () => {
     const id = await mk(evil);
     const dim = { score: 7, reason: `<img src=x onerror=alert(2)> see http://evil.example/a` };
     await writeReview(ctx, id, {
-      key: "k",
+      key: `${crypto.createHash("sha256").update(Buffer.from(SVG)).digest("hex")}|k`,
       createdAt: new Date().toISOString(),
       result: {
         scores: { readability: dim, originality: dim, balance: dim, scalability: dim, misinterpretation: dim },
@@ -196,7 +197,7 @@ describe("identity zip", () => {
     const id = await mk("Acme");
     const dim = { score: 8, reason: "Clear." };
     await writeReview(ctx, id, {
-      key: "k",
+      key: `${crypto.createHash("sha256").update(Buffer.from(SVG)).digest("hex")}|k`,
       createdAt: new Date().toISOString(),
       result: {
         scores: { readability: dim, originality: dim, balance: dim, scalability: dim, misinterpretation: dim },

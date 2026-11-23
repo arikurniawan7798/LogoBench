@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { AppContext } from "../context.js";
 import { getRenderPalette } from "../colors/service.js";
 import { getType } from "../type/pairings.js";
-import { readReview } from "../review/cache.js";
+import { readReview, isForBytes } from "../review/cache.js";
 import { reviewSchema } from "../review/schema.js";
 import { MOCKUP_KINDS, MOCKUP_SPECS, renderMockup, type MockupKind } from "../mockups/render.js";
 import { downloadFont, fontSlug, FAMILY_RE, type FontFile } from "./fonts.js";
@@ -79,8 +79,10 @@ export async function buildIdentityZip(
   const palette = await getRenderPalette(ctx, projectId);
   const type = await getType(ctx, projectId);
   const stored = await readReview(ctx, projectId).catch(() => null);
-  const review = stored ? reviewSchema.safeParse(stored.result) : undefined;
   const warnings: string[] = [];
+  const current = stored && isForBytes(stored, bytes);
+  if (stored && !current) warnings.push("Review is for an earlier logo version and was left out");
+  const review = current ? reviewSchema.safeParse(stored.result) : undefined;
   const files: Record<string, Uint8Array> = {};
   const add = (name: string, data: Buffer) => void (files[name] = new Uint8Array(data));
 

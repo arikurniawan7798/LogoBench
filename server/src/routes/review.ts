@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { z } from "zod";
 import type { AppContext } from "../context.js";
 import { NotFoundError } from "../projects.js";
-import { readReview } from "../review/cache.js";
+import { readReview, isForBytes } from "../review/cache.js";
 import { reviewLogo, MAX_BRIEF_CHARS } from "../review/review.js";
 
 const body = z.object({ brief: z.string().max(MAX_BRIEF_CHARS).optional(), force: z.boolean().optional() });
@@ -25,6 +25,8 @@ export function reviewRouter(ctx: AppContext): Router {
     await ctx.projects.get(ctx, id); // 404 for unknown project
     const stored = await readReview(ctx, id);
     if (!stored) throw new NotFoundError("No review yet for this project. Run a review first.");
+    const { bytes } = await ctx.projects.latestVersion(ctx, id);
+    if (!isForBytes(stored, bytes)) throw new NotFoundError("No review for the current version. Run a review first.");
     res.json({ result: stored.result, cached: true, createdAt: stored.createdAt });
   }));
   return r;
