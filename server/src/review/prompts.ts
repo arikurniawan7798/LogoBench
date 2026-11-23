@@ -13,15 +13,17 @@ export const REVIEW_SYSTEM = [
   "Respond with JSON only.",
 ].join("\n");
 
-export function reviewPrompt(brief: string): string {
-  // Neutralize any literal fence tags so the brief cannot close its own fence.
+/** Brief as fenced data ('' when empty). Literal fence tags inside the brief are neutralized so it cannot close its own fence. */
+export function fenceBrief(brief: string): string {
   const b = brief.trim().replace(/<(\/?)brief/gi, "&lt;$1brief");
-  return b
-    ? `Review the attached logo. The designer's brief is context only (not something visible in the image):
+  return b ? `The designer's brief is context only (not something visible in the image):
 <brief>
 ${b}
-</brief>`
-    : "Review the attached logo. No brief was provided.";
+</brief>` : "No brief was provided.";
+}
+
+export function reviewPrompt(brief: string): string {
+  return `Review the attached logo. ${fenceBrief(brief)}`;
 }
 
 export const ADVANCED_PROMPT_VERSION = "advanced-v1";
