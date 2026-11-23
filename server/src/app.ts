@@ -14,11 +14,15 @@ import { exportRouter } from "./routes/export.js";
 import { mockupsRouter } from "./routes/mockups.js";
 import { compareRouter } from "./routes/compare.js";
 import { settingsRouter } from "./routes/settings.js";
+import { identityRouter } from "./routes/identity.js";
+import type { FontFetcher } from "./identity/fonts.js";
 import { loadSettings } from "./settings.js";
 import { errorHandler } from "./errors.js";
 import { MAX_UPLOAD_BYTES, MAX_JSON_BYTES } from "./limits.js";
 
-export function createApp(deps: { dataDir?: string; provider?: Provider; limits?: { uploadBytes?: number; jsonBytes?: number } } = {}) {
+export function createApp(
+  deps: { dataDir?: string; provider?: Provider; limits?: { uploadBytes?: number; jsonBytes?: number }; fontFetcher?: FontFetcher } = {},
+) {
   const store = new Store(deps.dataDir ?? loadConfig().dataDir);
   const ctx: AppContext = {
     store,
@@ -27,6 +31,7 @@ export function createApp(deps: { dataDir?: string; provider?: Provider; limits?
     getProvider: async () => deps.provider ?? createProvider(await loadSettings(store)),
     projects: projectService,
     limits: { uploadBytes: deps.limits?.uploadBytes ?? MAX_UPLOAD_BYTES, jsonBytes: deps.limits?.jsonBytes ?? MAX_JSON_BYTES },
+    fontFetcher: deps.fontFetcher, // undefined: downloadFont uses global fetch
   };
   const app = express();
   app.use(express.json({ limit: ctx.limits.jsonBytes }));
@@ -42,6 +47,7 @@ export function createApp(deps: { dataDir?: string; provider?: Provider; limits?
   app.use("/api/projects/:id", advancedRouter(ctx));
   app.use("/api", exportRouter(ctx));
   app.use("/api", mockupsRouter(ctx));
+  app.use("/api", identityRouter(ctx));
   app.use("/api/forms", formsRouter(ctx));
   app.use("/api/compares", compareRouter(ctx));
   app.use("/api/settings", settingsRouter(ctx));
