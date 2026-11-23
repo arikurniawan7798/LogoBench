@@ -72,8 +72,10 @@ describe("GeminiProvider", () => {
     expect(f).toHaveBeenCalledTimes(1);
   });
   it("timeout aborts and surfaces as NETWORK", async () => {
-    const p = new GeminiProvider({ model: "m", apiKey: KEY, fetch: hang() as any, sleep: async () => {}, retries: 0, timeoutMs: 20 });
-    await expect(p.generateJson(req)).rejects.toMatchObject({ code: "NETWORK" });
+    const f = hang();
+    const p = new GeminiProvider({ model: "m", apiKey: KEY, fetch: f as any, sleep: async () => {}, retries: 0, timeoutMs: 20 });
+    await expect(p.generateJson(req)).rejects.toMatchObject({ code: "NETWORK", message: expect.stringMatching(/timed out/) });
+    expect(f.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
   });
   it("retryAfterSec 3600 fails fast without sleeping, hint preserved", async () => {
     const sleep = vi.fn(async () => {});
@@ -130,8 +132,10 @@ describe("OllamaProvider", () => {
     expect(f).toHaveBeenCalledTimes(1);
   });
   it("timeout -> NETWORK", async () => {
-    const p = new OllamaProvider({ model: "llava", url: "http://h:1", fetch: hang() as any, sleep: async () => {}, retries: 0, timeoutMs: 20 });
-    await expect(p.generateJson(req)).rejects.toMatchObject({ code: "NETWORK" });
+    const f = hang();
+    const p = new OllamaProvider({ model: "llava", url: "http://h:1", fetch: f as any, sleep: async () => {}, retries: 0, timeoutMs: 20 });
+    await expect(p.generateJson(req)).rejects.toMatchObject({ code: "NETWORK", message: expect.stringMatching(/timed out/) });
+    expect(f.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
   });
   it("connection failure -> NETWORK", async () => {
     const f = vi.fn().mockRejectedValue(new TypeError("fetch failed"));
