@@ -20,7 +20,7 @@ const AI_STATUS = { NO_KEY: 401, BAD_KEY: 401, RATE_LIMIT: 429, BAD_MODEL: 422, 
 export function aiMessage(e: AiError): string {
   switch (e.code) {
     case "NO_KEY":
-      return "No Gemini API key configured. Add one on the Settings page or set GEMINI_API_KEY in .env.";
+      return "No Gemini API key configured. Set GEMINI_API_KEY in the server's .env file, then restart the server (see the Settings page for setup steps).";
     case "BAD_MODEL":
       return `${e.message} Change the model in Settings.`;
     case "RATE_LIMIT":

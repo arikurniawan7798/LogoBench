@@ -20,7 +20,7 @@ export default function ErrorBanner({ error, onDismiss }: { error: ApiError | nu
         {error.code === "RATE_LIMIT" && retry === null && <p className="banner-retry">Wait a moment before trying again.</p>}
         {SETTINGS_CODES.has(error.code) && (
           <p>
-            <a href={href.settings()}>Open Settings</a> to check the AI provider and model.
+            <a href={href.settings()}>Open Settings for setup steps</a>
           </p>
         )}
       </div>

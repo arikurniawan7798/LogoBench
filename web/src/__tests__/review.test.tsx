@@ -109,6 +109,24 @@ describe("ReviewTab", () => {
     await user.click(within(banner).getByRole("button", { name: /dismiss/i }));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
+
+  it("NO_KEY error tells the user to set the key in .env and links to Settings for setup steps", async () => {
+    const message =
+      "No Gemini API key configured. Set GEMINI_API_KEY in the server's .env file, then restart the server (see the Settings page for setup steps).";
+    mockFetch({
+      "GET /api/projects/p1/review": () => ({ status: 404, body: { error: "No review yet for this project. Run a review first." } }),
+      "POST /api/projects/p1/review": () => ({ status: 401, body: { error: { code: "NO_KEY", message } } }),
+    });
+    const user = userEvent.setup();
+    render(<ReviewTab projectId="p1" />);
+
+    await user.click(await screen.findByRole("button", { name: /run review/i }));
+
+    const banner = await screen.findByRole("alert");
+    expect(banner).toHaveTextContent(message);
+    const link = within(banner).getByRole("link", { name: "Open Settings for setup steps" });
+    expect(link).toHaveAttribute("href", "#/settings");
+  });
 });
 
 describe("Home", () => {

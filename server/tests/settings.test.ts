@@ -98,6 +98,10 @@ it("NO_KEY maps to 401 with message telling where to set the key", async () => {
   expect(res.body.error.code).toBe("NO_KEY");
   expect(res.body.error.message).toMatch(/Settings/);
   expect(res.body.error.message).toMatch(/GEMINI_API_KEY/);
+  // The key lives in the server's .env only; the Settings page explains setup but has no key field.
+  expect(res.body.error.message).toMatch(/\.env/);
+  expect(res.body.error.message).toMatch(/restart/i);
+  expect(res.body.error.message).not.toMatch(/Add one on the Settings page/);
 });
 
 it("maps other AiError codes", async () => {
