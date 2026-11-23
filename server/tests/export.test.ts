@@ -133,6 +133,8 @@ describe("buildExportZip", () => {
     const id = await mk("W", Buffer.from(GRAD.replace("</svg>", '<rect fill="rgb(1,2,3)"/></svg>')));
     const { zip, skipped } = await buildExportZip(ctx, id, {});
     const readme = Buffer.from(unzipSync(new Uint8Array(zip))["README.txt"]).toString();
+    expect(readme).toContain("Your logo: the cleaned SVG");
+    expect(readme).not.toContain("as uploaded");
     expect(readme).toMatch(/Gradients are not recolored/);
     expect(readme).toMatch(/Unsupported color value "rgb\(1,2,3\)"/);
     expect(skipped).toEqual([]);

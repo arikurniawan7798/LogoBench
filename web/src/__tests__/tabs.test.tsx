@@ -116,7 +116,7 @@ describe("ExportTab", () => {
     mockFetch({});
     render(<ExportTab project={project("image/png")} />);
 
-    const svgButton = screen.getByRole("button", { name: /download original svg/i });
+    const svgButton = screen.getByRole("button", { name: /download cleaned svg/i });
     expect(svgButton).toBeDisabled();
     expect(svgButton).toHaveAccessibleDescription(/needs an svg/i);
 
@@ -133,9 +133,11 @@ describe("ExportTab", () => {
     mockFetch({});
     render(<ExportTab project={project("image/svg+xml")} />);
 
-    expect(screen.queryByRole("button", { name: /download original svg/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /download original svg/i })).toHaveAttribute("href", "/api/projects/p1/logo?v=v1");
+    expect(screen.queryByRole("button", { name: /download cleaned svg/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /download cleaned svg/i })).toHaveAttribute("href", "/api/projects/p1/logo?v=v1");
     expect(screen.getByRole("listitem", { name: /recolored svg versions/i })).not.toHaveTextContent(/not included/i);
+    expect(screen.getByRole("listitem", { name: /your logo/i })).toHaveTextContent(/cleaned svg/i);
+    expect(screen.queryByText(/as uploaded|original svg/i)).not.toBeInTheDocument();
   });
 });
 

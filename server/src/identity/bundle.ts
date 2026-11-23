@@ -135,7 +135,7 @@ function readme(warnings: string[]): string {
     "Open index.html in any browser. Everything it needs is in this folder, so it works offline.",
     "",
     "index.html        One-page brand identity: logo, colors, typography, mockups and review notes.",
-    "assets/logo.*     The logo as uploaded.",
+    "assets/logo.*     The logo: the cleaned SVG (scripts and external links removed), or the PNG/JPG/WebP unchanged.",
     "assets/mockups/   Pre-rendered mockup images (PNG).",
     "assets/fonts/     Brand fonts (WOFF2, Google Fonts, open licenses).",
     "",

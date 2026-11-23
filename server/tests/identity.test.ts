@@ -143,6 +143,8 @@ describe("identity zip", () => {
     expect(html).toMatch(/could not be downloaded/i);
     expect(html).not.toMatch(REMOTE);
     expect(strFromU8(files["README.txt"])).toMatch(/could not be downloaded/i);
+    expect(strFromU8(files["README.txt"])).toMatch(/assets\/logo\.\*\s+The logo: the cleaned SVG/);
+    expect(strFromU8(files["README.txt"])).not.toMatch(/as uploaded\.$/m);
     expect(files["assets/mockups/website.png"]).toBeDefined();
   });
 

@@ -105,7 +105,7 @@ function readme(isSvg: boolean, skipped: string[], notes: string[]): string {
     "Your logo pack",
     "==============",
     "",
-    "logo.svg / logo.png / logo.jpg  Your logo as uploaded (SVG files are cleaned of scripts and external links).",
+    "logo.svg / logo.png / logo.jpg  Your logo: the cleaned SVG (scripts and external links removed), or the raster unchanged.",
     "logo-main.svg                   Brand colour version (single-colour logos take your main brand colour).",
     "logo-white.svg, logo-black.svg  One-colour versions for stamps, engraving and print.",
     "logo-on-dark.svg                Light version for dark backgrounds.",

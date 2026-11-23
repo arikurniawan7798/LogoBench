@@ -6,7 +6,12 @@ const SVG_REASON = "Needs an SVG upload. This logo was uploaded as a raster imag
 type Item = { id: string; label: string; detail: string; needsSvg: boolean };
 
 const PACK: Item[] = [
-  { id: "original", label: "Your logo as uploaded", detail: "SVG files are cleaned of scripts and external links.", needsSvg: false },
+  {
+    id: "original",
+    label: "Your logo file",
+    detail: "SVG logos are the cleaned SVG (scripts and external links removed); PNG, JPG and WebP files are included unchanged.",
+    needsSvg: false,
+  },
   {
     id: "recolored",
     label: "Recolored SVG versions",
@@ -83,14 +88,14 @@ export default function ExportTab({ project }: { project: Project }) {
         {isSvg ? (
           <p>
             <a className="btn" href={logoUrl(project.id, latest?.id)} download={`${safeName(project.name)}.svg`}>
-              Download original SVG
+              Download cleaned SVG
             </a>
           </p>
         ) : (
           <>
             <p>
               <button type="button" className="btn" disabled aria-describedby="svg-reason">
-                Download original SVG
+                Download cleaned SVG
               </button>
             </p>
             <p id="svg-reason" className="muted small">
