@@ -146,26 +146,24 @@ describe("runCreateIdentity", () => {
     expect(results.find((r) => r.step === "identity")?.status).toBe("ok");
   });
 
-  it("retries a rate-limited AI step once after a short Retry-After", async () => {
-    const waits: number[] = [];
-    const inner = new FakeProvider([REVIEW, COLORS, TYPE]);
-    let first = true;
+  it("does not retry a rate-limited step itself (the provider adapter owns backoff): one call, reported, later steps run", async () => {
+    const inner = new FakeProvider([COLORS, TYPE]);
+    let calls = 0;
     const flaky: Provider = {
       name: "flaky",
       model: "flaky-model",
       async generateJson<T>(req: GenerateRequest<T>): Promise<T> {
-        if (first) {
-          first = false;
-          throw new AiError("RATE_LIMIT", "Slow down.", { retryAfterSec: 2 });
-        }
+        calls++;
+        if (calls === 1) throw new AiError("RATE_LIMIT", "Slow down.", { retryAfterSec: 2 });
         return inner.generateJson(req);
       },
     };
     setup(flaky);
     const id = await mk();
-    const results = await runCreateIdentity(ctx, id, () => {}, { sleep: async (ms) => void waits.push(ms) });
-    expect(waits).toEqual([2000]);
-    expect(results.every((r) => r.status === "ok")).toBe(true);
+    const results = await runCreateIdentity(ctx, id, () => {});
+    expect(calls).toBe(3); // review once (failed, not retried), then colors and type
+    expect(results[0]).toMatchObject({ step: "review", status: "failed", error: { code: "RATE_LIMIT" } });
+    expect(results.slice(1).map((r) => r.status)).toEqual(["ok", "ok", "ok", "ok"]);
   });
 
   it("unknown project throws before any step runs", async () => {

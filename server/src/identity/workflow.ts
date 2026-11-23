@@ -20,12 +20,6 @@ export type StepEvent =
   | { type: "done"; results: StepResult[] }
   | { type: "error"; error: StepError };
 
-export type WorkflowOptions = { sleep?: (ms: number) => Promise<void> };
-
-/** A rate-limited AI call is retried once when the provider asks for a short wait; longer waits fail the step. */
-const MAX_RETRY_WAIT_SEC = 30;
-const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
 // One run per project at a time (per data store, so separate apps/tests never collide).
 const running = new WeakMap<Store, Set<string>>();
 const runningFor = (ctx: AppContext) => {
@@ -44,20 +38,9 @@ export function stepError(e: unknown): StepError {
   return { code: "INTERNAL", message: "Unexpected error in this step." };
 }
 
-async function withRetry<T>(fn: () => Promise<T>, sleep: (ms: number) => Promise<void>): Promise<T> {
-  try {
-    return await fn();
-  } catch (e) {
-    if (e instanceof AiError && e.code === "RATE_LIMIT" && e.retryAfterSec && e.retryAfterSec <= MAX_RETRY_WAIT_SEC) {
-      await sleep(e.retryAfterSec * 1000);
-      return fn();
-    }
-    throw e;
-  }
-}
-
 /**
  * "Create identity": review -> colors -> type -> mockups -> identity, strictly one after another.
+ * No retry layer here: the provider adapter already backs off on rate limits; a step that still fails is reported once.
  * A failed step is reported (with {code, message}) and the rest still run: colors and type fall back to deterministic,
  * AI-free results (extracted logo colors; the curated default pairing) unless the user already saved their own.
  * Throws only before any step starts (unknown project, or a run already in progress for this project).
@@ -66,14 +49,12 @@ export async function runCreateIdentity(
   ctx: AppContext,
   projectId: string,
   emit: (e: StepEvent) => void,
-  opts: WorkflowOptions = {},
 ): Promise<StepResult[]> {
   const active = runningFor(ctx);
   if (active.has(projectId)) throw new HttpError(409, "Create identity is already running for this project.");
   active.add(projectId); // synchronously, before any await, so concurrent callers see it
   try {
     await ctx.projects.get(ctx, projectId);
-    const sleep = opts.sleep ?? defaultSleep;
     const send = (e: StepEvent) => {
       try {
         emit(e);
@@ -85,13 +66,13 @@ export async function runCreateIdentity(
 
     const steps: Record<StepName, () => Promise<{ note?: string } | void>> = {
       review: async () => {
-        await withRetry(() => reviewLogo(ctx, projectId, {}), sleep);
+        await reviewLogo(ctx, projectId, {});
       },
       colors: async () => {
-        await withRetry(() => suggestPalette(ctx, projectId), sleep);
+        await suggestPalette(ctx, projectId);
       },
       type: async () => {
-        const { fallbacks } = await withRetry(() => suggestTypography(ctx, projectId), sleep);
+        const { fallbacks } = await suggestTypography(ctx, projectId);
         if (fallbacks.length) return { note: `Unknown font suggested for ${fallbacks.join(", ")}; picked a curated font instead.` };
       },
       mockups: async () => {
