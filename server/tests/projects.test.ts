@@ -18,7 +18,7 @@ let dir: string;
 let app: ReturnType<typeof createApp>;
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), "logobench-p-"));
-  app = createApp({ dataDir: dir });
+  app = createApp({ hostCheck: false, dataDir: dir });
 });
 afterEach(async () => {
   await fs.rm(dir, { recursive: true, force: true });
@@ -44,7 +44,7 @@ describe("projects api", () => {
   });
 
   it("rejects an upload over the configured cap with 413 (tiny injected limit, small body)", async () => {
-    const small = createApp({ dataDir: dir, limits: { uploadBytes: 2048 } });
+    const small = createApp({ hostCheck: false, dataDir: dir, limits: { uploadBytes: 2048 } });
     const big = Buffer.concat([PNG, Buffer.alloc(2048)]);
     const res = await request(small).post("/api/projects").attach("logo", big, "big.png");
     expect(res.status).toBe(413);

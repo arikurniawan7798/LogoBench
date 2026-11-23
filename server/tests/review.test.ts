@@ -31,7 +31,7 @@ const mk = async (c: { r: number; g: number; b: number }) =>
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), "logobench-r-"));
   provider = new FakeProvider();
-  app = createApp({ dataDir: dir, provider });
+  app = createApp({ hostCheck: false, dataDir: dir, provider });
   ctx = app.locals.ctx;
   pngA = await mk({ r: 255, g: 0, b: 0 });
   pngB = await mk({ r: 0, g: 0, b: 255 });

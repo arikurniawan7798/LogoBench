@@ -29,7 +29,7 @@ const mkProject = async (buf: Buffer, name = "a.png") => (await ctx.projects.cre
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), "logobench-c-"));
   provider = new FakeProvider();
-  app = createApp({ dataDir: dir, provider });
+  app = createApp({ hostCheck: false, dataDir: dir, provider });
   ctx = app.locals.ctx;
 });
 afterEach(async () => {

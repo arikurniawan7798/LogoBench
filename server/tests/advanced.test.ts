@@ -43,7 +43,7 @@ const long600 = (c: string) => `${c} `.repeat(Math.ceil(600 / (c.length + 1))).s
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), "logobench-a-"));
   provider = new FakeProvider();
-  app = createApp({ dataDir: dir, provider });
+  app = createApp({ hostCheck: false, dataDir: dir, provider });
   ctx = app.locals.ctx;
   png = await sharp({ create: { width: 8, height: 8, channels: 3, background: { r: 255, g: 0, b: 0 } } }).png().toBuffer();
   pid = (await ctx.projects.create(ctx, "p", { buffer: png, originalName: "a.png" })).id;

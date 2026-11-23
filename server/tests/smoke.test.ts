@@ -51,7 +51,7 @@ let provider: FakeProvider;
 beforeAll(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), "logobench-smoke-"));
   provider = new FakeProvider([REVIEW, COLORS, TYPE]);
-  app = createApp({ dataDir: dir, provider, fontFetcher: fonts });
+  app = createApp({ hostCheck: false, dataDir: dir, provider, fontFetcher: fonts });
 });
 afterAll(async () => {
   await fs.rm(dir, { recursive: true, force: true });

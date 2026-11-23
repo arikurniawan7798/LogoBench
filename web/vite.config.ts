@@ -7,7 +7,9 @@ const apiTarget = process.env.LOGOBENCH_API_URL || `http://127.0.0.1:${Number(pr
 
 export default defineConfig({
   plugins: [react()],
-  server: { proxy: { "/api": apiTarget } },
+  // changeOrigin: the API server only accepts its own loopback Host (DNS-rebinding guard, server/src/hostcheck.ts).
+  // strictPort: the server allows the dev Origin http://localhost:5173 only, so never drift to another port.
+  server: { port: 5173, strictPort: true, proxy: { "/api": { target: apiTarget, changeOrigin: true } } },
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],

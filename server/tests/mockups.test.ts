@@ -35,7 +35,7 @@ const pixel = async (buf: Buffer, x: number, y: number) => {
 
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), "logobench-m-"));
-  app = createApp({ dataDir: dir });
+  app = createApp({ hostCheck: false, dataDir: dir });
   ctx = app.locals.ctx;
   png = await solid(200, 100).png().toBuffer();
 });

@@ -34,7 +34,7 @@ const items = (n: number) => ids.slice(0, n).map((projectId) => ({ projectId }))
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), "logobench-c-"));
   provider = new FakeProvider();
-  app = createApp({ dataDir: dir, provider });
+  app = createApp({ hostCheck: false, dataDir: dir, provider });
   ctx = app.locals.ctx;
   ids = [];
   ids.push((await ctx.projects.create(ctx, names[0], { buffer: Buffer.from(svg), originalName: "a.svg" })).id);
@@ -162,7 +162,7 @@ describe("compare flow", () => {
         throw new AiError("RATE_LIMIT", "slow down", { retryAfterSec: 12 });
       },
     };
-    const a2 = createApp({ dataDir: dir, provider: limited });
+    const a2 = createApp({ hostCheck: false, dataDir: dir, provider: limited });
     const res = await request(a2).post("/api/compares").send({ items: items(2) });
     expect(res.status).toBe(429);
     expect(res.body.error.retryAfterSec).toBe(12);

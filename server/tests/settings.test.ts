@@ -33,7 +33,7 @@ function appThrowing(err: Error) {
 }
 
 it("GET never contains the key string", async () => {
-  const app = createApp({ dataDir: dir });
+  const app = createApp({ hostCheck: false, dataDir: dir });
   const put = await request(app).put("/api/settings").send({ ...body, geminiKey: "SECRET-KEY-123" });
   expect(put.status).toBe(200);
   const get = await request(app).get("/api/settings");
@@ -43,7 +43,7 @@ it("GET never contains the key string", async () => {
 });
 
 it("defaults, env key, and omitting geminiKey keeps the saved key", async () => {
-  const app = createApp({ dataDir: dir });
+  const app = createApp({ hostCheck: false, dataDir: dir });
   const d = await request(app).get("/api/settings");
   expect(d.body).toMatchObject({ provider: "gemini", hasGeminiKey: false, ollamaUrl: "http://127.0.0.1:11434" });
   process.env.GEMINI_API_KEY = "env-key";
@@ -57,13 +57,13 @@ it("defaults, env key, and omitting geminiKey keeps the saved key", async () => 
 });
 
 it("PUT persists and survives new app instance", async () => {
-  await request(createApp({ dataDir: dir })).put("/api/settings").send(body).expect(200);
-  const res = await request(createApp({ dataDir: dir })).get("/api/settings");
+  await request(createApp({ hostCheck: false, dataDir: dir })).put("/api/settings").send(body).expect(200);
+  const res = await request(createApp({ hostCheck: false, dataDir: dir })).get("/api/settings");
   expect(res.body).toMatchObject(body);
 });
 
 it("PUT takes effect without restart via getProvider", async () => {
-  const app = createApp({ dataDir: dir });
+  const app = createApp({ hostCheck: false, dataDir: dir });
   await request(app).put("/api/settings").send(body).expect(200);
   const p = await app.locals.ctx.getProvider();
   expect(p.name).toBe("ollama");
@@ -71,7 +71,7 @@ it("PUT takes effect without restart via getProvider", async () => {
 });
 
 it("PUT rejects invalid input with 422", async () => {
-  const app = createApp({ dataDir: dir });
+  const app = createApp({ hostCheck: false, dataDir: dir });
   for (const bad of [
     { ...body, provider: "x" },
     { ...body, geminiModel: "  " },
@@ -117,7 +117,7 @@ it("maps other AiError codes", async () => {
 it("corrupt settings.json: GET returns defaults, PUT overwrites it", async () => {
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
   fs.writeFileSync(path.join(dir, "settings.json"), '{"provider": "oll');
-  const app = createApp({ dataDir: dir });
+  const app = createApp({ hostCheck: false, dataDir: dir });
   const get = await request(app).get("/api/settings");
   expect(get.status).toBe(200);
   expect(get.body.provider).toBe("gemini");
@@ -128,12 +128,12 @@ it("corrupt settings.json: GET returns defaults, PUT overwrites it", async () =>
 
 it("invalid hand-edited fields fall back to defaults", async () => {
   fs.writeFileSync(path.join(dir, "settings.json"), JSON.stringify({ provider: "ollama", geminiModel: "", ollamaUrl: "zzz" }));
-  const res = await request(createApp({ dataDir: dir })).get("/api/settings");
+  const res = await request(createApp({ hostCheck: false, dataDir: dir })).get("/api/settings");
   expect(res.body).toMatchObject({ provider: "ollama", geminiModel: DEFAULT_GEMINI_MODEL, ollamaUrl: "http://127.0.0.1:11434" });
 });
 
 it("saved key beats env key", async () => {
-  const app = createApp({ dataDir: dir });
+  const app = createApp({ hostCheck: false, dataDir: dir });
   process.env.GEMINI_API_KEY = "env-key";
   expect((await loadSettings(app.locals.ctx.store)).geminiKey).toBe("env-key");
   await request(app).put("/api/settings").send({ ...body, geminiKey: "saved-key" });
@@ -141,7 +141,7 @@ it("saved key beats env key", async () => {
 });
 
 it("non-AI errors through the central handler", async () => {
-  const app = createApp({ dataDir: dir, limits: { jsonBytes: 1024 } });
+  const app = createApp({ hostCheck: false, dataDir: dir, limits: { jsonBytes: 1024 } });
   const big = await request(app).put("/api/settings").set("Content-Type", "application/json").send(JSON.stringify({ x: "a".repeat(4096) }));
   expect(big.status).toBe(413);
   expect(big.body).toEqual({ error: "Request body too large" });
@@ -159,7 +159,7 @@ it("non-AI errors through the central handler", async () => {
 
 it("JSON body limit: just under is accepted, just over is 413", async () => {
   const limit = 1024;
-  const app = createApp({ dataDir: dir, limits: { jsonBytes: limit } });
+  const app = createApp({ hostCheck: false, dataDir: dir, limits: { jsonBytes: limit } });
   // Pad a valid settings body (unknown keys are ignored) to an exact byte length.
   const sized = (bytes: number) => {
     const base = JSON.stringify({ ...body, pad: "" });

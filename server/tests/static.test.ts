@@ -15,7 +15,7 @@ beforeAll(async () => {
   await fs.writeFile(path.join(web, "index.html"), "<!doctype html><title>SPA</title>");
   await fs.writeFile(path.join(web, "assets", "app.js"), "console.log(1)");
   await fs.writeFile(path.join(root, "secret.txt"), "top secret");
-  app = createApp({ dataDir: path.join(root, "data"), webDir: web });
+  app = createApp({ hostCheck: false, dataDir: path.join(root, "data"), webDir: web });
 });
 afterAll(async () => {
   await fs.rm(root, { recursive: true, force: true });
@@ -54,7 +54,7 @@ describe("static web serving", () => {
     expect((await request(app).post("/project/abc")).status).toBe(404);
   });
   it("without webDir nothing is served at /", async () => {
-    const plain = createApp({ dataDir: path.join(root, "data2") });
+    const plain = createApp({ hostCheck: false, dataDir: path.join(root, "data2") });
     expect((await request(plain).get("/")).status).toBe(404);
   });
 });

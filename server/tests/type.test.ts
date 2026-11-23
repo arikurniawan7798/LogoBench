@@ -22,7 +22,7 @@ const toPx = (v: string) => (v.endsWith("rem") ? parseFloat(v) * 16 : parseFloat
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), "logobench-t-"));
   provider = new FakeProvider();
-  app = createApp({ dataDir: dir, provider });
+  app = createApp({ hostCheck: false, dataDir: dir, provider });
   ctx = app.locals.ctx;
 });
 afterEach(async () => {
@@ -161,7 +161,7 @@ describe("suggest", () => {
     expect(res.body.error.code).toBe("BAD_OUTPUT");
     expect(await ctx.store.readJson(`projects/${id}/type.json`)).toBeNull();
     // schema rejection through the FakeProvider is the same path
-    const app2 = createApp({ dataDir: dir, provider: new FakeProvider(["Sure! Here you go: {}"]) });
+    const app2 = createApp({ hostCheck: false, dataDir: dir, provider: new FakeProvider(["Sure! Here you go: {}"]) });
     const res2 = await request(app2).post(`/api/projects/${id}/type/suggest`).send({});
     expect(res2.status).toBe(422);
     expect(await ctx.store.readJson(`projects/${id}/type.json`)).toBeNull();

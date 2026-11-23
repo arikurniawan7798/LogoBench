@@ -86,7 +86,7 @@ afterEach(async () => {
 describe("identity zip", () => {
   it("identity.html contains no remote URLs, and every local asset it references is in the zip", async () => {
     const { fetcher } = fakeFonts();
-    ctx = createApp({ dataDir: dir, fontFetcher: fetcher }).locals.ctx;
+    ctx = createApp({ hostCheck: false, dataDir: dir, fontFetcher: fetcher }).locals.ctx;
     const id = await mk();
     const { zip, warnings } = await buildIdentityZip(ctx, id);
     expect(warnings).toEqual([]);
@@ -111,7 +111,7 @@ describe("identity zip", () => {
 
   it("fonts bundled when fetcher returns files: @font-face points at local woff2 files (latin subsets only)", async () => {
     const { fetcher, urls } = fakeFonts();
-    ctx = createApp({ dataDir: dir, fontFetcher: fetcher }).locals.ctx;
+    ctx = createApp({ hostCheck: false, dataDir: dir, fontFetcher: fetcher }).locals.ctx;
     const id = await mk();
     const files = entries((await buildIdentityZip(ctx, id)).zip);
     const html = strFromU8(files["index.html"]);
@@ -130,7 +130,7 @@ describe("identity zip", () => {
   });
 
   it("font download failure falls back to the system stack with a warning; zip still built", async () => {
-    ctx = createApp({ dataDir: dir, fontFetcher: failingFetcher }).locals.ctx;
+    ctx = createApp({ hostCheck: false, dataDir: dir, fontFetcher: failingFetcher }).locals.ctx;
     const id = await mk();
     const { zip, warnings } = await buildIdentityZip(ctx, id);
     expect(warnings.join(" ")).toMatch(/Montserrat.*system font/i);
@@ -149,7 +149,7 @@ describe("identity zip", () => {
     const { fetcher, urls } = fakeFonts();
     let online = true;
     const toggled: FontFetcher = (u, init) => (online ? fetcher(u, init) : failingFetcher(u, init));
-    ctx = createApp({ dataDir: dir, fontFetcher: toggled }).locals.ctx;
+    ctx = createApp({ hostCheck: false, dataDir: dir, fontFetcher: toggled }).locals.ctx;
     const id = await mk();
     await buildIdentityZip(ctx, id);
     const before = urls.length;
@@ -162,7 +162,7 @@ describe("identity zip", () => {
 
   it("escapes the project name and AI text; no raw markup or remote URLs reach the page", async () => {
     const { fetcher } = fakeFonts();
-    ctx = createApp({ dataDir: dir, fontFetcher: fetcher }).locals.ctx;
+    ctx = createApp({ hostCheck: false, dataDir: dir, fontFetcher: fetcher }).locals.ctx;
     const evil = `</title><script>alert(1)</script> https://evil.example "x' & ../../x`;
     const id = await mk(evil);
     const dim = { score: 7, reason: `<img src=x onerror=alert(2)> see http://evil.example/a` };
@@ -189,7 +189,7 @@ describe("identity zip", () => {
 
   it("raster logos are bundled with their own extension", async () => {
     const { fetcher } = fakeFonts();
-    ctx = createApp({ dataDir: dir, fontFetcher: fetcher }).locals.ctx;
+    ctx = createApp({ hostCheck: false, dataDir: dir, fontFetcher: fetcher }).locals.ctx;
     const png = (await import("sharp")).default;
     const buf = await png({ create: { width: 40, height: 20, channels: 3, background: { r: 0, g: 0, b: 255 } } }).png().toBuffer();
     const id = await mk("Blue", buf, "b.png");
@@ -252,7 +252,7 @@ describe("downloadFont", () => {
 describe("GET /api/projects/:id/identity.zip", () => {
   it("returns the identity zip as an attachment", async () => {
     const { fetcher } = fakeFonts();
-    const app = createApp({ dataDir: dir, fontFetcher: fetcher });
+    const app = createApp({ hostCheck: false, dataDir: dir, fontFetcher: fetcher });
     ctx = app.locals.ctx;
     const id = await mk("Acme Co");
     const res = await request(app)
@@ -270,7 +270,7 @@ describe("GET /api/projects/:id/identity.zip", () => {
   });
 
   it("404 for an unknown project", async () => {
-    const app = createApp({ dataDir: dir, fontFetcher: failingFetcher });
+    const app = createApp({ hostCheck: false, dataDir: dir, fontFetcher: failingFetcher });
     const res = await request(app).get(`/api/projects/does-not-exist/identity.zip`);
     expect(res.status).toBe(404);
   });

@@ -25,7 +25,7 @@ const mk = async (name: string, buf: Buffer, file = "a.svg") => (await ctx.proje
 
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), "logobench-x-"));
-  app = createApp({ dataDir: dir });
+  app = createApp({ hostCheck: false, dataDir: dir });
   ctx = app.locals.ctx;
   png = await sharp({ create: { width: 40, height: 20, channels: 4, background: { r: 255, g: 0, b: 0, alpha: 0.5 } } }).png().toBuffer();
 });
@@ -223,7 +223,7 @@ describe("tools routes", () => {
     expect(bad.status).toBe(422);
   });
   it("reject non-images with 415 and oversized with 413", async () => {
-    const small = createApp({ dataDir: dir, limits: { uploadBytes: 2048 } });
+    const small = createApp({ hostCheck: false, dataDir: dir, limits: { uploadBytes: 2048 } });
     for (const url of ["/api/tools/favicons", "/api/tools/background"]) {
       const q = () => request(small).post(url).field("width", "64").field("height", "64").field("color", "#000000");
       expect((await q().attach("logo", Buffer.from("GIF89a....."), "a.gif")).status).toBe(415);

@@ -39,7 +39,7 @@ class FailingProvider implements Provider {
 let dir: string;
 let ctx: AppContext;
 const setup = (provider: Provider, fontFetcher: FontFetcher = noFonts) => {
-  const app = createApp({ dataDir: dir, provider, fontFetcher });
+  const app = createApp({ hostCheck: false, dataDir: dir, provider, fontFetcher });
   ctx = app.locals.ctx;
   return app;
 };

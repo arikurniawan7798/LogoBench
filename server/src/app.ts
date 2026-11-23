@@ -20,9 +20,18 @@ import type { FontFetcher } from "./identity/fonts.js";
 import { loadSettings } from "./settings.js";
 import { errorHandler } from "./errors.js";
 import { MAX_UPLOAD_BYTES, MAX_JSON_BYTES } from "./limits.js";
+import { hostGuard, type HostCheckOptions } from "./hostcheck.js";
 
 export function createApp(
-  deps: { dataDir?: string; provider?: Provider; limits?: { uploadBytes?: number; jsonBytes?: number }; fontFetcher?: FontFetcher; webDir?: string } = {},
+  deps: {
+    dataDir?: string;
+    provider?: Provider;
+    limits?: { uploadBytes?: number; jsonBytes?: number };
+    fontFetcher?: FontFetcher;
+    webDir?: string;
+    /** Host/Origin guard (see hostcheck.ts). Default: strict on the configured port. `false` only in tests. */
+    hostCheck?: HostCheckOptions | false;
+  } = {},
 ) {
   const store = new Store(deps.dataDir ?? loadConfig().dataDir);
   const ctx: AppContext = {
@@ -35,6 +44,7 @@ export function createApp(
     fontFetcher: deps.fontFetcher, // undefined: downloadFont uses global fetch
   };
   const app = express();
+  if (deps.hostCheck !== false) app.use(hostGuard(deps.hostCheck ?? { port: loadConfig().port }));
   app.use(express.json({ limit: ctx.limits.jsonBytes }));
   app.locals.ctx = ctx;
   app.get("/api/health", (_req, res) => {
