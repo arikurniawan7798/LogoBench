@@ -1,6 +1,6 @@
 import { AiError, type GenerateRequest, type Provider } from "./provider.js";
 import { generateValidated, withBackoff } from "./structured.js";
-import { DEFAULT_GEMINI_MODEL } from "../config.js";
+import { DEFAULT_GEMINI_MODEL, GEMINI_TIMEOUT_MS } from "../config.js";
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
 
@@ -10,6 +10,7 @@ export type GeminiOpts = {
   fetch?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
   retries?: number;
+  timeoutMs?: number;
   baseMs?: number;
 };
 
@@ -60,8 +61,10 @@ export class GeminiProvider implements Provider {
         method: "POST",
         headers: { "content-type": "application/json", "x-goog-api-key": this.opts.apiKey! },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(this.opts.timeoutMs ?? GEMINI_TIMEOUT_MS),
       });
-    } catch {
+    } catch (e) {
+      if (e instanceof Error && e.name === "TimeoutError") throw new AiError("NETWORK", "The Gemini API request timed out");
       throw new AiError("NETWORK", "Could not reach the Gemini API");
     }
     if (!res.ok) throw await this.httpError(res);
@@ -87,8 +90,16 @@ export class GeminiProvider implements Provider {
     if (res.status === 429) {
       return new AiError("RATE_LIMIT", "Gemini rate limit or quota reached", { retryAfterSec: retryAfter(res, detail) });
     }
-    if (res.status === 401 || res.status === 403 || (res.status === 400 && /api key/i.test(msg))) {
+    const keyProblem = /api[ _]key|API_KEY/i.test(msg);
+    if (res.status === 401 || ((res.status === 400 || res.status === 403) && keyProblem)) {
       return new AiError("BAD_KEY", "Gemini rejected the API key");
+    }
+    if (res.status === 404) {
+      return new AiError("BAD_MODEL", `Gemini model "${this.model}" was not found; change the model name in Settings`);
+    }
+    if (res.status === 403) {
+      // Not a key problem: usually no access to this model/region. Not retried.
+      return new AiError("BAD_MODEL", `Gemini denied access to model "${this.model}" (${msg}); check the model name in Settings`);
     }
     if (res.status >= 500) return new AiError("NETWORK", `Gemini server error (${res.status})`);
     return new AiError("BAD_OUTPUT", `Gemini request failed (${res.status}): ${msg}`);

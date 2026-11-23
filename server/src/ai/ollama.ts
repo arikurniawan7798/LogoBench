@@ -1,6 +1,6 @@
 import { AiError, type GenerateRequest, type Provider } from "./provider.js";
 import { generateValidated, withBackoff } from "./structured.js";
-import { DEFAULT_OLLAMA_MODEL, DEFAULT_OLLAMA_URL } from "../config.js";
+import { DEFAULT_OLLAMA_MODEL, DEFAULT_OLLAMA_URL, OLLAMA_TIMEOUT_MS } from "../config.js";
 
 export type OllamaOpts = {
   model?: string;
@@ -8,6 +8,7 @@ export type OllamaOpts = {
   fetch?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
   retries?: number;
+  timeoutMs?: number;
   baseMs?: number;
 };
 
@@ -49,11 +50,16 @@ export class OllamaProvider implements Provider {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(this.opts.timeoutMs ?? OLLAMA_TIMEOUT_MS),
       });
-    } catch {
+    } catch (e) {
+      if (e instanceof Error && e.name === "TimeoutError") throw new AiError("NETWORK", `Ollama at ${this.url} timed out`);
       throw new AiError("NETWORK", `Could not reach Ollama at ${this.url}`);
     }
     if (!res.ok) {
+      if (res.status === 404) {
+        throw new AiError("BAD_MODEL", `Ollama model "${this.model}" not found; run: ollama pull ${this.model}`);
+      }
       if (res.status >= 500) throw new AiError("NETWORK", `Ollama server error (${res.status})`);
       throw new AiError("BAD_OUTPUT", `Ollama request failed (${res.status}); is model "${this.model}" pulled?`);
     }

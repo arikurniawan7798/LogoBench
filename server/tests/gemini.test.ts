@@ -4,6 +4,11 @@ import { GeminiProvider } from "../src/ai/gemini.js";
 import { OllamaProvider } from "../src/ai/ollama.js";
 import { FakeProvider } from "../src/ai/fake.js";
 import { createProvider } from "../src/ai/provider.js";
+import { DEFAULT_GEMINI_MODEL } from "../src/config.js";
+
+// fetch mock that never resolves but honours AbortSignal, like real fetch
+const hang = () =>
+  vi.fn((_u: any, init: any) => new Promise((_res, rej) => init.signal.addEventListener("abort", () => rej(init.signal.reason))));
 
 const schema = z.object({ score: z.number() });
 const KEY = "SECRET-KEY-123";
@@ -47,9 +52,46 @@ describe("GeminiProvider", () => {
     expect(err.code).toBe("BAD_KEY");
     expect(err.message).not.toContain(KEY);
   });
-  it("403 -> BAD_KEY", async () => {
-    const f = vi.fn().mockResolvedValue(json(403, { error: { message: "permission denied" } }));
+  it("403 about the API key -> BAD_KEY", async () => {
+    const f = vi.fn().mockResolvedValue(json(403, { error: { message: "Method doesn't allow unregistered callers (API key missing)" } }));
     await expect(mk(f).generateJson(req)).rejects.toMatchObject({ code: "BAD_KEY" });
+  });
+  it("other 403 -> BAD_MODEL (not retried) with sanitized message", async () => {
+    const f = vi.fn().mockResolvedValue(json(403, { error: { message: `model access denied ${KEY}` } }));
+    const err = await mk(f).generateJson(req).catch((e) => e);
+    expect(err.code).toBe("BAD_MODEL");
+    expect(err.message).not.toContain(KEY);
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+  it("404 -> BAD_MODEL with a single fetch call, even with retries", async () => {
+    const f = vi.fn().mockResolvedValue(json(404, { error: { message: "model not found" } }));
+    const p = new GeminiProvider({ model: "nope", apiKey: KEY, fetch: f as any, sleep: async () => {}, retries: 2 });
+    const err = await p.generateJson(req).catch((e) => e);
+    expect(err.code).toBe("BAD_MODEL");
+    expect(err.message).toMatch(/Settings/);
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+  it("timeout aborts and surfaces as NETWORK", async () => {
+    const p = new GeminiProvider({ model: "m", apiKey: KEY, fetch: hang() as any, sleep: async () => {}, retries: 0, timeoutMs: 20 });
+    await expect(p.generateJson(req)).rejects.toMatchObject({ code: "NETWORK" });
+  });
+  it("retryAfterSec 3600 fails fast without sleeping, hint preserved", async () => {
+    const sleep = vi.fn(async () => {});
+    const f = vi.fn().mockResolvedValue(json(429, {}, { "retry-after": "3600" }));
+    const p = new GeminiProvider({ model: "m", apiKey: KEY, fetch: f as any, sleep, retries: 2 });
+    await expect(p.generateJson(req)).rejects.toMatchObject({ code: "RATE_LIMIT", retryAfterSec: 3600 });
+    expect(sleep).not.toHaveBeenCalled();
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+  it("retryAfterSec 2 sleeps 2000", async () => {
+    const sleep = vi.fn(async () => {});
+    const f = vi.fn().mockResolvedValueOnce(json(429, {}, { "retry-after": "2" })).mockResolvedValueOnce(ok('{"score":1}'));
+    const p = new GeminiProvider({ model: "m", apiKey: KEY, fetch: f as any, sleep, retries: 2, baseMs: 100 });
+    await p.generateJson(req);
+    expect(sleep).toHaveBeenCalledWith(2000);
+  });
+  it("default model is gemini-3.6-flash", () => {
+    expect(DEFAULT_GEMINI_MODEL).toBe("gemini-3.6-flash");
   });
   it("fetch failure -> NETWORK", async () => {
     const f = vi.fn().mockRejectedValue(new TypeError("fetch failed"));
@@ -78,6 +120,18 @@ describe("OllamaProvider", () => {
     expect(body.format).toBe("json");
     expect(body.stream).toBe(false);
     expect(body.messages[1].images).toEqual([Buffer.from("hi").toString("base64")]);
+  });
+  it("404 -> BAD_MODEL telling the user to ollama pull, one call", async () => {
+    const f = vi.fn().mockResolvedValue(json(404, { error: "model not found" }));
+    const p = new OllamaProvider({ model: "llava", url: "http://h:1", fetch: f as any, sleep: async () => {}, retries: 2 });
+    const err = await p.generateJson(req).catch((e) => e);
+    expect(err.code).toBe("BAD_MODEL");
+    expect(err.message).toContain("ollama pull llava");
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+  it("timeout -> NETWORK", async () => {
+    const p = new OllamaProvider({ model: "llava", url: "http://h:1", fetch: hang() as any, sleep: async () => {}, retries: 0, timeoutMs: 20 });
+    await expect(p.generateJson(req)).rejects.toMatchObject({ code: "NETWORK" });
   });
   it("connection failure -> NETWORK", async () => {
     const f = vi.fn().mockRejectedValue(new TypeError("fetch failed"));

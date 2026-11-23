@@ -2,7 +2,7 @@ import type { z } from "zod";
 import { GeminiProvider } from "./gemini.js";
 import { OllamaProvider } from "./ollama.js";
 
-export type AiErrorCode = "NO_KEY" | "BAD_KEY" | "RATE_LIMIT" | "BAD_OUTPUT" | "NETWORK";
+export type AiErrorCode = "NO_KEY" | "BAD_KEY" | "RATE_LIMIT" | "BAD_OUTPUT" | "NETWORK" | "BAD_MODEL";
 
 export class AiError extends Error {
   readonly code: AiErrorCode;

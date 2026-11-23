@@ -51,6 +51,10 @@ export async function generateValidated<T>(call: () => Promise<string>, schema: 
 
 export type BackoffOpts = { retries: number; baseMs: number; sleep?: (ms: number) => Promise<void> };
 
+/** Longest server retry hint we will wait out in-request (seconds). */
+export const MAX_RETRY_AFTER_SEC = 20;
+const MAX_SLEEP_MS = MAX_RETRY_AFTER_SEC * 1000;
+
 const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export async function withBackoff<T>(fn: () => Promise<T>, opts: BackoffOpts): Promise<T> {
@@ -61,8 +65,10 @@ export async function withBackoff<T>(fn: () => Promise<T>, opts: BackoffOpts): P
     } catch (e) {
       const retryable = e instanceof AiError && (e.code === "RATE_LIMIT" || e.code === "NETWORK");
       if (!retryable || attempt >= opts.retries) throw e;
+      // Fail fast on long server hints so the UI can show the wait instead of holding the request.
+      if (e.retryAfterSec && e.retryAfterSec > MAX_RETRY_AFTER_SEC) throw e;
       const exp = opts.baseMs * 2 ** attempt;
-      await sleep(e.retryAfterSec ? Math.max(e.retryAfterSec * 1000, exp) : exp);
+      await sleep(Math.min(MAX_SLEEP_MS, e.retryAfterSec ? Math.max(e.retryAfterSec * 1000, exp) : exp));
     }
   }
 }

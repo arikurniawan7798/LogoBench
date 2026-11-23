@@ -51,6 +51,18 @@ describe("withBackoff", () => {
     expect(sleep).toHaveBeenNthCalledWith(1, 2000);
     expect(sleep).toHaveBeenNthCalledWith(2, 200);
   });
+  it("fails fast on a long retry hint, preserving it", async () => {
+    const sleep = vi.fn();
+    const fn = vi.fn().mockRejectedValue(new AiError("RATE_LIMIT", "x", { retryAfterSec: 3600 }));
+    await expect(withBackoff(fn, { retries: 3, baseMs: 1, sleep })).rejects.toMatchObject({ code: "RATE_LIMIT", retryAfterSec: 3600 });
+    expect(sleep).not.toHaveBeenCalled();
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+  it("does not retry BAD_MODEL", async () => {
+    const fn = vi.fn().mockRejectedValue(new AiError("BAD_MODEL", "x"));
+    await expect(withBackoff(fn, { retries: 3, baseMs: 1, sleep: async () => {} })).rejects.toMatchObject({ code: "BAD_MODEL" });
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
   it("does not retry other codes", async () => {
     const fn = vi.fn().mockRejectedValue(new AiError("BAD_KEY", "no"));
     await expect(withBackoff(fn, { retries: 3, baseMs: 1, sleep: async () => {} })).rejects.toMatchObject({ code: "BAD_KEY" });
