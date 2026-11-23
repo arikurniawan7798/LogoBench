@@ -3,6 +3,7 @@ import { request } from "./helpers/request.js";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import type { Response } from "supertest";
 import { unzipSync, strFromU8 } from "fflate";
 import { createApp } from "../src/app.js";
 import { FakeProvider } from "../src/ai/fake.js";
@@ -37,7 +38,7 @@ const fonts: FontFetcher = async (url) => {
   return new Response("nope", { status: 404 });
 };
 
-const binary = (r: NodeJS.ReadableStream, cb: (e: Error | null, b: Buffer) => void) => {
+const binary = (r: Response, cb: (e: Error | null, b: Buffer) => void) => {
   const c: Buffer[] = [];
   r.on("data", (d: Buffer) => c.push(d));
   r.on("end", () => cb(null, Buffer.concat(c)));
