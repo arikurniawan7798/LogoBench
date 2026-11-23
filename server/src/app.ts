@@ -1,24 +1,21 @@
 import express from "express";
 import { Store } from "./storage.js";
-import { loadConfig, DEFAULT_GEMINI_MODEL, DEFAULT_OLLAMA_MODEL, DEFAULT_OLLAMA_URL } from "./config.js";
+import { loadConfig } from "./config.js";
 import { createProvider, type Provider } from "./ai/provider.js";
 import type { AppContext } from "./context.js";
 import { projectService } from "./projects.js";
 import { projectsRouter } from "./routes/projects.js";
+import { settingsRouter } from "./routes/settings.js";
+import { loadSettings } from "./settings.js";
+import { errorHandler } from "./errors.js";
 
 export function createApp(deps: { dataDir?: string; provider?: Provider } = {}) {
+  const store = new Store(deps.dataDir ?? loadConfig().dataDir);
   const ctx: AppContext = {
-    store: new Store(deps.dataDir ?? loadConfig().dataDir),
-    getProvider: () =>
-      deps.provider ??
-      // Built lazily per call; with no key the Gemini adapter throws AiError NO_KEY before any network call.
-      createProvider({
-        provider: "gemini",
-        geminiModel: DEFAULT_GEMINI_MODEL,
-        ollamaModel: DEFAULT_OLLAMA_MODEL,
-        ollamaUrl: DEFAULT_OLLAMA_URL,
-        geminiKey: loadConfig().geminiKey,
-      }),
+    store,
+    // Settings are re-read on every call so changes apply without a restart; an injected provider wins (tests).
+    // With no key the Gemini adapter throws AiError NO_KEY before any network call.
+    getProvider: async () => deps.provider ?? createProvider(await loadSettings(store)),
     projects: projectService,
   };
   const app = express();
@@ -28,5 +25,7 @@ export function createApp(deps: { dataDir?: string; provider?: Provider } = {}) 
     res.json({ ok: true });
   });
   app.use("/api/projects", projectsRouter(ctx));
+  app.use("/api/settings", settingsRouter(ctx));
+  app.use(errorHandler);
   return app;
 }

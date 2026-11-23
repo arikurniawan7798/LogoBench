@@ -1,0 +1,53 @@
+import type { Request, Response, NextFunction } from "express";
+import multer from "multer";
+import { AiError } from "./ai/provider.js";
+import { NotFoundError, UnsupportedMediaError } from "./projects.js";
+import { SettingsValidationError } from "./settings.js";
+
+const AI_STATUS = { NO_KEY: 401, BAD_KEY: 401, RATE_LIMIT: 429, BAD_MODEL: 422, BAD_OUTPUT: 422, NETWORK: 502 } as const;
+
+function aiMessage(e: AiError): string {
+  switch (e.code) {
+    case "NO_KEY":
+      return "No Gemini API key configured. Add one on the Settings page or set GEMINI_API_KEY in .env.";
+    case "BAD_MODEL":
+      return `${e.message} Change the model in Settings.`;
+    case "RATE_LIMIT":
+      return e.retryAfterSec ? `${e.message} Retry in about ${e.retryAfterSec}s.` : e.message;
+    default:
+      return e.message;
+  }
+}
+
+/** Central Express error middleware: AI errors, upload/project errors, settings validation, fallback 500. */
+export function errorHandler(err: any, _req: Request, res: Response, _next: NextFunction): void {
+  if (err instanceof AiError) {
+    if (err.code === "RATE_LIMIT" && err.retryAfterSec) res.setHeader("Retry-After", String(err.retryAfterSec));
+    res.status(AI_STATUS[err.code]).json({
+      error: { code: err.code, message: aiMessage(err), ...(err.retryAfterSec ? { retryAfterSec: err.retryAfterSec } : {}) },
+    });
+    return;
+  }
+  if (err instanceof SettingsValidationError) {
+    res.status(422).json({ error: err.message });
+    return;
+  }
+  if (err instanceof multer.MulterError) {
+    res.status(err.code === "LIMIT_FILE_SIZE" ? 413 : 400).json({ error: err.message });
+    return;
+  }
+  if (err instanceof UnsupportedMediaError) {
+    res.status(415).json({ error: err.message });
+    return;
+  }
+  if (err instanceof NotFoundError) {
+    res.status(404).json({ error: err.message });
+    return;
+  }
+  if (err?.status === 400) {
+    res.status(400).json({ error: err.message });
+    return;
+  }
+  console.error(err);
+  res.status(500).json({ error: "Internal error" });
+}

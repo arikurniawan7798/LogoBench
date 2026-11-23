@@ -1,7 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import multer from "multer";
 import type { AppContext } from "../context.js";
-import { NotFoundError, UnsupportedMediaError } from "../projects.js";
 
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
@@ -33,15 +32,5 @@ export function projectsRouter(ctx: AppContext): Router {
     res.send(bytes);
   }));
 
-  r.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    if (err instanceof multer.MulterError) {
-      return void res.status(err.code === "LIMIT_FILE_SIZE" ? 413 : 400).json({ error: err.message });
-    }
-    if (err instanceof UnsupportedMediaError) return void res.status(415).json({ error: err.message });
-    if (err instanceof NotFoundError) return void res.status(404).json({ error: err.message });
-    if (err?.status === 400) return void res.status(400).json({ error: err.message });
-    console.error(err);
-    res.status(500).json({ error: "Internal error" });
-  });
   return r;
 }
