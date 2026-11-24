@@ -1,0 +1,622 @@
+[
+  {
+    "family": "Inter",
+    "category": "sans",
+    "moods": [
+      "minimal",
+      "technical",
+      "neutral",
+      "modern"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "Montserrat",
+    "category": "sans",
+    "moods": [
+      "geometric",
+      "bold",
+      "modern",
+      "urban"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700,
+      800
+    ]
+  },
+  {
+    "family": "Poppins",
+    "category": "sans",
+    "moods": [
+      "geometric",
+      "friendly",
+      "modern",
+      "playful"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "Nunito",
+    "category": "sans",
+    "moods": [
+      "humanist",
+      "friendly",
+      "soft",
+      "playful"
+    ],
+    "weights": [
+      400,
+      600,
+      700,
+      800
+    ]
+  },
+  {
+    "family": "Open Sans",
+    "category": "sans",
+    "moods": [
+      "humanist",
+      "neutral",
+      "friendly",
+      "classic"
+    ],
+    "weights": [
+      400,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "Lato",
+    "category": "sans",
+    "moods": [
+      "humanist",
+      "classic",
+      "friendly",
+      "minimal"
+    ],
+    "weights": [
+      400,
+      700,
+      900
+    ]
+  },
+  {
+    "family": "Work Sans",
+    "category": "sans",
+    "moods": [
+      "minimal",
+      "technical",
+      "modern",
+      "neutral"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "DM Sans",
+    "category": "sans",
+    "moods": [
+      "geometric",
+      "minimal",
+      "modern",
+      "friendly"
+    ],
+    "weights": [
+      400,
+      500,
+      700
+    ]
+  },
+  {
+    "family": "Manrope",
+    "category": "sans",
+    "moods": [
+      "modern",
+      "technical",
+      "minimal",
+      "geometric"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700,
+      800
+    ]
+  },
+  {
+    "family": "Raleway",
+    "category": "sans",
+    "moods": [
+      "elegant",
+      "minimal",
+      "geometric",
+      "light"
+    ],
+    "weights": [
+      300,
+      400,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "Source Sans 3",
+    "category": "sans",
+    "moods": [
+      "humanist",
+      "neutral",
+      "technical",
+      "classic"
+    ],
+    "weights": [
+      400,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "Rubik",
+    "category": "sans",
+    "moods": [
+      "friendly",
+      "playful",
+      "bold",
+      "modern"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "Quicksand",
+    "category": "sans",
+    "moods": [
+      "playful",
+      "soft",
+      "friendly",
+      "geometric"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "Barlow",
+    "category": "sans",
+    "moods": [
+      "technical",
+      "bold",
+      "urban",
+      "industrial"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "Space Grotesk",
+    "category": "sans",
+    "moods": [
+      "technical",
+      "bold",
+      "modern",
+      "quirky"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "Playfair Display",
+    "category": "serif",
+    "moods": [
+      "elegant",
+      "classic",
+      "luxury",
+      "editorial"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700,
+      800
+    ]
+  },
+  {
+    "family": "Merriweather",
+    "category": "serif",
+    "moods": [
+      "classic",
+      "humanist",
+      "trustworthy",
+      "editorial"
+    ],
+    "weights": [
+      400,
+      700,
+      900
+    ]
+  },
+  {
+    "family": "Lora",
+    "category": "serif",
+    "moods": [
+      "elegant",
+      "classic",
+      "humanist",
+      "editorial"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "Cormorant Garamond",
+    "category": "serif",
+    "moods": [
+      "elegant",
+      "luxury",
+      "classic",
+      "refined"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "Libre Baskerville",
+    "category": "serif",
+    "moods": [
+      "classic",
+      "trustworthy",
+      "editorial",
+      "formal"
+    ],
+    "weights": [
+      400,
+      700
+    ]
+  },
+  {
+    "family": "EB Garamond",
+    "category": "serif",
+    "moods": [
+      "classic",
+      "elegant",
+      "refined",
+      "literary"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "Crimson Text",
+    "category": "serif",
+    "moods": [
+      "classic",
+      "literary",
+      "humanist",
+      "editorial"
+    ],
+    "weights": [
+      400,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "DM Serif Display",
+    "category": "serif",
+    "moods": [
+      "elegant",
+      "bold",
+      "editorial",
+      "luxury"
+    ],
+    "weights": [
+      400
+    ]
+  },
+  {
+    "family": "Bitter",
+    "category": "serif",
+    "moods": [
+      "humanist",
+      "friendly",
+      "technical",
+      "classic"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "Roboto Slab",
+    "category": "serif",
+    "moods": [
+      "technical",
+      "bold",
+      "trustworthy",
+      "classic"
+    ],
+    "weights": [
+      400,
+      500,
+      700
+    ]
+  },
+  {
+    "family": "Bebas Neue",
+    "category": "display",
+    "moods": [
+      "bold",
+      "urban",
+      "impactful",
+      "industrial"
+    ],
+    "weights": [
+      400
+    ]
+  },
+  {
+    "family": "Oswald",
+    "category": "display",
+    "moods": [
+      "bold",
+      "urban",
+      "industrial",
+      "impactful"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "Abril Fatface",
+    "category": "display",
+    "moods": [
+      "bold",
+      "elegant",
+      "editorial",
+      "luxury"
+    ],
+    "weights": [
+      400
+    ]
+  },
+  {
+    "family": "Fredoka",
+    "category": "display",
+    "moods": [
+      "playful",
+      "friendly",
+      "soft",
+      "bold"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "Righteous",
+    "category": "display",
+    "moods": [
+      "playful",
+      "retro",
+      "bold",
+      "quirky"
+    ],
+    "weights": [
+      400
+    ]
+  },
+  {
+    "family": "Lobster",
+    "category": "display",
+    "moods": [
+      "playful",
+      "retro",
+      "friendly",
+      "bold"
+    ],
+    "weights": [
+      400
+    ]
+  },
+  {
+    "family": "Archivo Black",
+    "category": "display",
+    "moods": [
+      "bold",
+      "impactful",
+      "modern",
+      "urban"
+    ],
+    "weights": [
+      400
+    ]
+  },
+  {
+    "family": "Pacifico",
+    "category": "script",
+    "moods": [
+      "playful",
+      "friendly",
+      "retro",
+      "casual"
+    ],
+    "weights": [
+      400
+    ]
+  },
+  {
+    "family": "Dancing Script",
+    "category": "script",
+    "moods": [
+      "elegant",
+      "friendly",
+      "casual",
+      "romantic"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "Great Vibes",
+    "category": "script",
+    "moods": [
+      "elegant",
+      "romantic",
+      "luxury",
+      "formal"
+    ],
+    "weights": [
+      400
+    ]
+  },
+  {
+    "family": "Caveat",
+    "category": "script",
+    "moods": [
+      "casual",
+      "friendly",
+      "playful",
+      "handmade"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "Satisfy",
+    "category": "script",
+    "moods": [
+      "casual",
+      "retro",
+      "friendly",
+      "handmade"
+    ],
+    "weights": [
+      400
+    ]
+  },
+  {
+    "family": "JetBrains Mono",
+    "category": "mono",
+    "moods": [
+      "technical",
+      "modern",
+      "minimal",
+      "developer"
+    ],
+    "weights": [
+      400,
+      500,
+      700
+    ]
+  },
+  {
+    "family": "IBM Plex Mono",
+    "category": "mono",
+    "moods": [
+      "technical",
+      "classic",
+      "neutral",
+      "developer"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700
+    ]
+  },
+  {
+    "family": "Space Mono",
+    "category": "mono",
+    "moods": [
+      "technical",
+      "quirky",
+      "retro",
+      "developer"
+    ],
+    "weights": [
+      400,
+      700
+    ]
+  },
+  {
+    "family": "Fira Code",
+    "category": "mono",
+    "moods": [
+      "technical",
+      "developer",
+      "modern",
+      "neutral"
+    ],
+    "weights": [
+      400,
+      500,
+      600,
+      700
+    ]
+  }
+]
