@@ -2,6 +2,29 @@
   "name": "logobench",
   "private": true,
   "version": "0.1.0",
+  "description": "Local-first logo review and brand-identity workbench: AI critique, palettes, type pairings, mockups and exports.",
+  "keywords": [
+    "logo",
+    "branding",
+    "brand-identity",
+    "design-tools",
+    "gemini",
+    "ollama",
+    "react",
+    "express",
+    "typescript",
+    "sharp"
+  ],
+  "homepage": "https://github.com/arikurniawan7798/LogoBench#readme",
+  "bugs": {
+    "url": "https://github.com/arikurniawan7798/LogoBench/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arikurniawan7798/LogoBench.git"
+  },
+  "license": "MIT",
+  "author": "Ari",
   "workspaces": [
     "server",
     "web"
@@ -10,10 +33,13 @@
     "test": "npm test -w server && npm test -w web",
     "dev": "concurrently -n server,web -c blue,green \"npm run dev -w server\" \"npm run dev -w web\"",
     "build": "npm run build -w server && npm run build -w web",
-    "start": "npm run build -w web && npm run serve -w server"
+    "start": "npm run build -w web && npm run serve -w server",
+    "seed:demo": "npm run seed:demo -w server --",
+    "start:demo": "cross-env DATA_DIR=data-demo npm start"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0"
+    "concurrently": "^9.1.0",
+    "cross-env": "7.0.3"
   },
   "engines": {
     "node": ">=20.19"
