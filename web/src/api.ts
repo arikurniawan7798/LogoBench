@@ -41,6 +41,17 @@ export type ProjectVersion = {
   uploadedAt: string;
 };
 export type Project = { id: string; name: string; createdAt: string; versions: ProjectVersion[] };
+/** Server PROJECT_NAME_MAX (server/src/projects.ts): 1-80 characters after trimming, no control characters. */
+export const PROJECT_NAME_MAX = 80;
+const NAME_FORBIDDEN_RE = /[\u0000-\u001F\u007F-\u009F‎‏‪-‮⁦-⁩]/;
+/** Client-side mirror of the server's rename validation: an error message, or null when `name` (trimmed) is valid. */
+export function projectNameProblem(name: string): string | null {
+  const t = name.trim();
+  if (!t) return "Name cannot be empty.";
+  if (Array.from(t).length > PROJECT_NAME_MAX) return `Name must be at most ${PROJECT_NAME_MAX} characters.`;
+  if (NAME_FORBIDDEN_RE.test(t)) return "Name cannot contain control characters.";
+  return null;
+}
 
 export type Provider = "gemini" | "ollama";
 /** GET/PUT /api/settings response (publicSettings: the key itself is never sent to the browser). */
@@ -286,6 +297,9 @@ export const api = {
     if (name && name.trim()) form.append("name", name.trim());
     return request<Project>("/api/projects", { method: "POST", body: form });
   },
+
+  /** PATCH /api/projects/:id: renames the logo. The name is what mockups, the identity page and exports show. */
+  renameProject: (id: string, name: string) => request<Project>(`/api/projects/${enc(id)}`, json("PATCH", { name })),
 
   /** POST /api/projects/:id/versions: adds a new logo version (validated and sanitized like the first upload). */
   addVersion(id: string, file: File): Promise<Project> {

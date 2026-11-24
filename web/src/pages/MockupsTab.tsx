@@ -5,7 +5,24 @@ import { Skeleton } from "../components/loading";
 import { useApiError } from "../components/toast";
 import { href } from "../router";
 
-export default function MockupsTab({ projectId, versionId }: { projectId: string; versionId?: string }) {
+/** Short, stable token for the name so a rename changes every mockup URL (the server renders on each request). */
+function nameToken(s: string): string {
+  let h = 5381;
+  for (const ch of s) h = ((h * 33) ^ (ch.codePointAt(0) ?? 0)) >>> 0;
+  return h.toString(36);
+}
+
+export default function MockupsTab({
+  projectId,
+  versionId,
+  projectName,
+  onRename,
+}: {
+  projectId: string;
+  versionId?: string;
+  projectName: string;
+  onRename: () => void;
+}) {
   const [specs, setSpecs] = useState<MockupSpec[] | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [round, setRound] = useState(0);
@@ -28,7 +45,7 @@ export default function MockupsTab({ projectId, versionId }: { projectId: string
   }, [report]);
 
   // Rendered fresh by the server on every request; the bust value forces a re-fetch after colors/type change.
-  const bust = `${versionId ?? ""}-${round}`;
+  const bust = `${versionId ?? ""}-${nameToken(projectName)}-${round}`;
 
   return (
     <div className="mockups">
@@ -40,6 +57,13 @@ export default function MockupsTab({ projectId, versionId }: { projectId: string
             The logo placed in common settings, drawn with your saved <a href={href.project(projectId, "colors")}>colors</a> and{" "}
             <a href={href.project(projectId, "type")}>type</a>. Text is set in a system font of the same style (serif, sans or
             script) as your chosen fonts.
+          </p>
+          <p className="mockup-name-note">
+            Mockups use the name “{projectName}”{" "}
+            <span aria-hidden="true">—</span>{" "}
+            <button type="button" className="link-button" onClick={onRename}>
+              Rename<span className="sr-only"> logo</span>
+            </button>
           </p>
         </div>
         <div className="section-actions">

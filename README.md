@@ -63,7 +63,11 @@ It could contain a plaintext API key only if one was saved through the settings 
   Compare brief can be loaded from a project's brief, including filled client forms)
 - Color palette extraction and editing (HEX, RGB and CMYK; CMYK values are approximate, not print-accurate)
 - Typography suggestions and pairings
-- Mockups (website, app icon and more), favicon and background tools
+- Mockups (website, mobile screen, app icon, favicon tab, business card) drawn with the logo's name. A new logo is
+  named after its file ("ledgerly-logo.jpg" becomes "ledgerly logo"); use **Rename** next to the title (or the link
+  on the Mockups tab) to change it, up to 80 characters. Mockups, the identity page, exports and the PDF report use the
+  current name. JPG/PNG logos on a plain background are cut out for the app icon; photo-like logos sit on a white badge
+- Favicon and background tools
 - Client brief forms
 - Export zip, and a brand-identity zip (single `index.html` page, logo, palette, mockups, fonts)
 - "Create identity" runs review, colors, type, mockups and the bundle in one go, reporting any step that failed.
@@ -82,7 +86,7 @@ new version to get them).
   font names). The resulting zip works offline.
 - Nothing else leaves the machine; the server binds to 127.0.0.1 only.
 - Web pages you visit cannot drive the app: the server answers only requests addressed to `127.0.0.1`, `localhost`
-  or `[::1]` on its port (anything else, e.g. a DNS-rebinding host name, gets 403), and refuses POST/PUT/DELETE
+  or `[::1]` on its port (anything else, e.g. a DNS-rebinding host name, gets 403), and refuses POST/PUT/PATCH/DELETE
   requests whose `Origin` is another site. Open the app by one of those addresses.
 
 ## Known limitation

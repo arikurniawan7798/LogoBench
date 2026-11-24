@@ -34,6 +34,34 @@ export function sniffMime(b: Buffer): string | null {
 
 const ID_RE = /^[A-Za-z0-9-]+$/;
 
+/** Project names: 1-80 characters (code points) after trimming, no control or bidi-override characters. */
+export const PROJECT_NAME_MAX = 80;
+export const NAME_FORBIDDEN_RE = /[\u0000-\u001F\u007F-\u009F‎‏‪-‮⁦-⁩]/;
+const NAME_FORBIDDEN_G = new RegExp(NAME_FORBIDDEN_RE.source, "g");
+
+/**
+ * A friendly default name from an uploaded file name: drop the extension, turn _ - . into spaces, collapse whitespace,
+ * trim and cap at PROJECT_NAME_MAX. "ledgerly-logo.jpg" -> "ledgerly logo". Never empty ("Untitled logo").
+ */
+export function defaultNameFromFile(fileName: string): string {
+  const base = (typeof fileName === "string" ? fileName : "").replace(/\.[A-Za-z0-9]{1,5}$/, "");
+  const words = base.replace(NAME_FORBIDDEN_G, " ").replace(/[_.\-]+/g, " ").replace(/\s+/g, " ").trim();
+  return Array.from(words).slice(0, PROJECT_NAME_MAX).join("").trim() || "Untitled logo";
+}
+
+/** Per-project mutation queue: read-modify-write of project.json never interleaves (a rename cannot drop a new version). */
+const queues = new Map<string, Promise<unknown>>();
+function serialized<T>(id: string, work: () => Promise<T>): Promise<T> {
+  const prev = queues.get(id) ?? Promise.resolve();
+  const next = prev.catch(() => {}).then(work);
+  const tail = next.catch(() => {});
+  queues.set(id, tail);
+  void tail.then(() => {
+    if (queues.get(id) === tail) queues.delete(id);
+  });
+  return next;
+}
+
 function isProject(p: unknown): p is Project {
   const o = p as Partial<Project> | null;
   return (
@@ -115,10 +143,23 @@ export const projectService = {
     return all.filter((p): p is Project => !!p).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   },
   async addVersion(ctx: AppContext, id: string, file: UploadFile): Promise<Project> {
-    const project = await loadProject(ctx, id);
-    project.versions.push(await storeVersion(ctx, id, file));
-    await ctx.store.writeJson(`${dir(id)}/project.json`, project);
-    return project;
+    await loadProject(ctx, id); // 404 before storing any bytes
+    return serialized(id, async () => {
+      const project = await loadProject(ctx, id);
+      project.versions.push(await storeVersion(ctx, id, file));
+      await ctx.store.writeJson(`${dir(id)}/project.json`, project);
+      return project;
+    });
+  },
+  /** Rename (the route validates the name). Atomic write via the store; NotFoundError (404) for an unknown project. */
+  async rename(ctx: AppContext, id: string, name: string): Promise<Project> {
+    await loadProject(ctx, id);
+    return serialized(id, async () => {
+      const project = await loadProject(ctx, id);
+      project.name = name;
+      await ctx.store.writeJson(`${dir(id)}/project.json`, project);
+      return project;
+    });
   },
   async latestVersion(ctx: AppContext, id: string): Promise<{ meta: ProjectVersion; bytes: Buffer }> {
     const project = await loadProject(ctx, id);

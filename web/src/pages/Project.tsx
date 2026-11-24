@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { api, logoUrl, type ApiError, type Project as ProjectT } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
+import ProjectTitle from "../components/ProjectTitle";
 import { BusyLabel, Skeleton } from "../components/loading";
 import { useApiError, useToast } from "../components/toast";
 import { ACCEPT, checkFile } from "../files";
@@ -27,6 +28,7 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
   const [project, setProject] = useState<ProjectT | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const report = useApiError();
   const toast = useToast();
   const uploadingRef = useRef(false); // double-submit guard (state updates are async)
@@ -39,6 +41,7 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
     idRef.current = id;
     setProject(null);
     setError(null);
+    setRenaming(false);
     api.getProject(id).then(
       (p) => live && setProject(p),
       (e) => live && setError(report(e)),
@@ -74,6 +77,27 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
       uploadingRef.current = false;
       setUploading(false);
     }
+  }
+
+  /** PATCH the name; true on success. Errors are toasted and the editor stays open. */
+  async function onRename(name: string): Promise<boolean> {
+    const forId = id;
+    try {
+      const updated = await api.renameProject(forId, name);
+      if (idRef.current !== forId) return true;
+      setProject(updated);
+      setRenaming(false);
+      toast.success(`Renamed to “${updated.name}”.`, "Mockups, the identity page and exports now use this name.");
+      return true;
+    } catch (err) {
+      if (idRef.current === forId) report(err, { title: "Could not rename" });
+      return false;
+    }
+  }
+
+  /** Opens the title editor (also from the Mockups tab); focusing its input scrolls it into view. */
+  function startRename() {
+    setRenaming(true);
   }
 
   function select(tabId: string, focus = false) {
@@ -121,7 +145,13 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
           <p className="crumb">
             <a href={href.home()}>Your logos</a> <span aria-hidden="true">/</span>
           </p>
-          <h1>{project.name}</h1>
+          <ProjectTitle
+            name={project.name}
+            editing={renaming}
+            onStart={startRename}
+            onCancel={() => setRenaming(false)}
+            onSave={onRename}
+          />
           <p className="muted small">
             {latest ? `${latest.originalName} · ` : ""}
             {project.versions.length} {project.versions.length === 1 ? "version" : "versions"}
@@ -167,14 +197,14 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
       </div>
 
       <div className="tabpanel" role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`} tabIndex={0}>
-        <TabContent tab={active} project={project} />
+        <TabContent tab={active} project={project} onRename={startRename} />
       </div>
     </div>
   );
 }
 
 /** Keyed by project + version id so a tab never shows (or receives late responses for) another project's or an older version's data. */
-function TabContent({ tab, project }: { tab: string; project: ProjectT }) {
+function TabContent({ tab, project, onRename }: { tab: string; project: ProjectT; onRename: () => void }) {
   const key = `${project.id}:${project.versions[project.versions.length - 1]?.id ?? ""}`;
   const projectId = project.id;
   switch (tab) {
@@ -185,7 +215,15 @@ function TabContent({ tab, project }: { tab: string; project: ProjectT }) {
     case "type":
       return <TypeTab key={key} projectId={projectId} />;
     case "mockups":
-      return <MockupsTab key={key} projectId={projectId} versionId={project.versions[project.versions.length - 1]?.id} />;
+      return (
+        <MockupsTab
+          key={key}
+          projectId={projectId}
+          versionId={project.versions[project.versions.length - 1]?.id}
+          projectName={project.name}
+          onRename={onRename}
+        />
+      );
     case "export":
       return <ExportTab key={key} project={project} />;
     case "identity":

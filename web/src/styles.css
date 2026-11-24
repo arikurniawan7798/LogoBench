@@ -949,6 +949,54 @@ a.btn {
   margin-top: 0.4rem;
 }
 
+.mockup-name-note {
+  margin: 0.25rem 0 0;
+}
+.link-button {
+  font: inherit;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+/* Project title rename */
+.title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  margin: 0 0 0.4em;
+}
+.title-row h1 {
+  margin: 0;
+  min-width: 0;
+}
+.rename-form {
+  margin: 0 0 0.6rem;
+  max-width: 36rem;
+}
+.rename-form input[type="text"] {
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+.rename-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.rename-actions .over {
+  color: var(--danger);
+}
+.rename-form .field-error {
+  margin: 0.4rem 0 0;
+}
+
 /* Export */
 .export-card {
   padding-bottom: 0.75rem;
