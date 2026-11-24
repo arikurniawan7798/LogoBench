@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toApiError, type ApiError } from "../api";
 import { ErrorDetails, titleFor } from "./errorCopy";
+import { cn } from "./ui/cn";
+import { IconAlert, IconCheck, IconInfo, IconX } from "./ui/icons";
 
 /**
  * Toast notifications. Errors are role="alert" and stay ~10 s; successes are role="status" and stay ~5 s. A toast never
@@ -84,7 +86,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={api}>
       {children}
-      <div className="toast-region" role="region" aria-label="Notifications" aria-live="polite">
+      <div
+        className="pointer-events-none fixed inset-x-3 bottom-3 z-[70] flex flex-col items-stretch gap-2 sm:inset-x-auto sm:right-5 sm:bottom-5 sm:w-[24rem]"
+        role="region"
+        aria-label="Notifications"
+        aria-live="polite"
+      >
         {toasts.map((t) => (
           <ToastItem key={t.id} toast={t} onClose={dismiss} />
         ))}
@@ -118,7 +125,10 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: (id: number) => 
   const isError = toast.kind === "error";
   return (
     <div
-      className={`toast toast-${toast.kind}`}
+      className={cn(
+        "pointer-events-auto flex animate-toast-in items-start gap-3 rounded-xl border bg-surface p-3.5 pr-2.5 text-sm shadow-pop",
+        isError ? "border-danger-line" : "border-line",
+      )}
       role={isError ? "alert" : "status"}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -127,22 +137,33 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: (id: number) => 
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false);
       }}
     >
-      <span className="toast-icon" aria-hidden="true">
-        {isError ? "!" : "✓"}
+      <span
+        className={cn(
+          "grid size-7 shrink-0 place-items-center rounded-full",
+          isError ? "bg-danger-soft text-danger" : toast.kind === "success" ? "bg-success-soft text-success" : "bg-info-soft text-info",
+        )}
+        aria-hidden="true"
+      >
+        {isError ? <IconAlert className="size-4" /> : toast.kind === "success" ? <IconCheck className="size-4" /> : <IconInfo className="size-4" />}
       </span>
-      <div className="toast-body">
+      <div className="min-w-0 flex-1 space-y-0.5 pt-0.5 leading-5">
         {toast.error ? (
           <ErrorDetails error={toast.error} title={toast.title} onNavigate={() => onClose(toast.id)} />
         ) : (
           <>
-            <p className="toast-title">{toast.title}</p>
-            {toast.message && <p>{toast.message}</p>}
+            <p className="font-semibold text-fg">{toast.title}</p>
+            {toast.message && <p className="text-fg-muted">{toast.message}</p>}
           </>
         )}
-        {toast.count > 1 && <p className="toast-count">Happened {toast.count} times</p>}
+        {toast.count > 1 && <p className="text-xs font-medium text-fg-subtle">Happened {toast.count} times</p>}
       </div>
-      <button type="button" className="banner-dismiss toast-dismiss" onClick={() => onClose(toast.id)} aria-label="Dismiss notification">
-        <span aria-hidden="true">×</span>
+      <button
+        type="button"
+        className="grid size-7 shrink-0 place-items-center rounded-lg text-fg-subtle transition-colors hover:bg-accent-soft hover:text-accent-text"
+        onClick={() => onClose(toast.id)}
+        aria-label="Dismiss notification"
+      >
+        <IconX className="size-4" />
       </button>
     </div>
   );

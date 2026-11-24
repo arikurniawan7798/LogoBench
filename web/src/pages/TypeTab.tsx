@@ -1,7 +1,8 @@
-import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { api, SOCIAL_SCALE_KEYS, WEB_SCALE_KEYS, type ApiError, type TypeSystem } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
-import { BusyLabel, BusyPanel, Skeleton } from "../components/loading";
+import { BusyPanel } from "../components/loading";
+import { Button, Callout, Card, CardHeader, IconSparkles, Input, PageHeader, Skeleton } from "../components/ui";
 import { useApiError, useToast, useToastsEnabled } from "../components/toast";
 
 const ROLES = [
@@ -110,11 +111,9 @@ export default function TypeTab({ projectId }: { projectId: string }) {
 
   if (!sys) {
     return (
-      <div className="type">
+      <div className="flex flex-col gap-6">
         <ErrorBanner error={error} onDismiss={() => setError(null)} />
-        {!error && (
-          <Skeleton label="Loading type…" lines={4} />
-        )}
+        {!error && <Skeleton label="Loading type…" lines={4} />}
       </div>
     );
   }
@@ -123,144 +122,150 @@ export default function TypeTab({ projectId }: { projectId: string }) {
   const bodyFont = stack(sys.body, SANS);
 
   return (
-    <div className="type">
+    <div className="flex flex-col gap-6">
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
 
-      <div className="section-head">
-        <div>
-          <h2>Type</h2>
-          <p className="muted section-note">
-            A heading and body pairing from a curated list of Google Fonts, with web and social size scales.
-          </p>
-        </div>
-        <div className="section-actions">
-          <button type="button" className="btn" onClick={suggest} disabled={busy !== null} aria-busy={busy === "suggest"}>
-            <BusyLabel busy={busy === "suggest"} busyText="Asking the model…">
-              Suggest with AI
-            </BusyLabel>
-          </button>
-        </div>
-      </div>
-      <p className="muted small">AI suggestions replace a type system you have edited and saved.</p>
+      <PageHeader
+        level={2}
+        title="Type"
+        description={
+          <>
+            <p>A heading and body pairing from a curated list of Google Fonts, with web and social size scales.</p>
+            <p className="mt-1 text-sm text-fg-subtle">AI suggestions replace a type system you have edited and saved.</p>
+          </>
+        }
+        actions={
+          <Button onClick={suggest} disabled={busy !== null} loading={busy === "suggest"} loadingText="Asking the model…" icon={<IconSparkles className="size-4" />}>
+            Suggest with AI
+          </Button>
+        }
+      />
       <BusyPanel active={busy === "suggest"} message="Asking the model to pair fonts for your logo…" />
 
-      <p className="note-callout">
-        Previews use each font only if it is installed on this computer, otherwise your system font. Nothing is downloaded while you
-        work; the identity zip bundles the real font files.
-      </p>
+      <Callout tone="info">
+        <p>
+          Previews use each font only if it is installed on this computer, otherwise your system font. Nothing is downloaded while you
+          work; the identity zip bundles the real font files.
+        </p>
+      </Callout>
 
-      <div className="pairing">
+      <div className="grid gap-4 md:grid-cols-3">
         {ROLES.map(({ key, label }) => {
           const family = key === "accent" ? sys.accent : sys[key];
           return (
-            <figure key={key} className="pairing-card">
-              <figcaption className="muted small">{label.replace(" (optional)", "")}</figcaption>
-              <p className="pairing-name">{family ?? "None"}</p>
-              {family && (
-                <p className="pairing-sample" style={{ fontFamily: stack(family, SANS) }}>
+            <Card as="figure" key={key} className="flex flex-col gap-3">
+              <figcaption className="text-xs font-semibold uppercase tracking-wider text-fg-subtle">{label.replace(" (optional)", "")}</figcaption>
+              <p className="text-lg font-semibold tracking-tight text-fg">{family ?? "None"}</p>
+              {family ? (
+                <p
+                  className={key === "body" ? "text-[0.9375rem] leading-relaxed text-fg-muted" : "text-3xl leading-tight text-fg"}
+                  style={{ fontFamily: stack(family, SANS) }}
+                >
                   {key === "body" ? "Clear, quiet text that carries the message." : "Brand at a glance"}
                 </p>
+              ) : (
+                <p className="text-sm text-fg-subtle">No accent font in this system.</p>
               )}
-            </figure>
+            </Card>
           );
         })}
       </div>
 
-      <form className="card type-form" onSubmit={save}>
-        <h3>Change fonts</h3>
-        <p className="muted small">Use a family name from the curated Google Fonts list, for example Inter, Lora or Montserrat.</p>
-        <div className="type-fields">
+      <Card as="form" onSubmit={save}>
+        <CardHeader title="Change fonts" description="Use a family name from the curated Google Fonts list, for example Inter, Lora or Montserrat." />
+        <div className="grid gap-4 sm:grid-cols-3">
           {ROLES.map(({ key, label }) => (
-            <div key={key} className="field">
-              <label htmlFor={`font-${key}`}>{label}</label>
-              <input
-                id={`font-${key}`}
-                type="text"
-                value={draft[key]}
-                maxLength={60}
-                required={key !== "accent"}
-                spellCheck={false}
-                onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
-              />
-            </div>
+            <Input
+              key={key}
+              id={`font-${key}`}
+              label={label}
+              type="text"
+              value={draft[key]}
+              maxLength={60}
+              required={key !== "accent"}
+              spellCheck={false}
+              onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
+            />
           ))}
         </div>
-        <div className="form-actions">
-          <button type="submit" className="btn btn-primary" disabled={busy !== null} aria-busy={busy === "save"}>
-            <BusyLabel busy={busy === "save"} busyText="Saving…">
-              Save fonts
-            </BusyLabel>
-          </button>
-          <span className="muted small" role={toastsOn ? undefined : "status"}>
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <Button type="submit" variant="primary" disabled={busy !== null} loading={busy === "save"} loadingText="Saving…">
+            Save fonts
+          </Button>
+          <span className="text-sm text-fg-muted" role={toastsOn ? undefined : "status"}>
             {notice}
           </span>
         </div>
-      </form>
+      </Card>
 
-      <section className="scale" aria-labelledby="web-scale-title">
-        <h3 id="web-scale-title">Web scale</h3>
-        <p className="muted small">Modular scale, ratio 1.25, from a 1rem body.</p>
-        <div className="table-wrap">
-          <table className="scale-table">
-            <thead>
-              <tr>
-                <th scope="col">Style</th>
-                <th scope="col">Size</th>
-                <th scope="col">Sample</th>
-              </tr>
-            </thead>
-            <tbody>
-              {WEB_SCALE_KEYS.map((k) => {
-                const v = sys.scale.web[k];
-                const isHeading = k === "h1" || k === "h2" || k === "h3";
-                return (
-                  <tr key={k}>
-                    <th scope="row">{WEB_LABELS[k]}</th>
-                    <td className="mono">{v}</td>
-                    <td>
-                      <span className="scale-sample" style={{ fontFamily: isHeading ? headingFont : bodyFont, fontSize: sizeOr(v, "1rem") }}>
-                        {isHeading ? "Brand headline" : "Readable running text"}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <div className="grid items-start gap-6 xl:grid-cols-2">
+        <ScaleCard id="web-scale-title" title="Web scale" note="Modular scale, ratio 1.25, from a 1rem body.">
+          {WEB_SCALE_KEYS.map((k) => {
+            const v = sys.scale.web[k];
+            const isHeading = k === "h1" || k === "h2" || k === "h3";
+            return (
+              <ScaleRow key={k} label={WEB_LABELS[k]} size={v}>
+                <span style={{ fontFamily: isHeading ? headingFont : bodyFont, fontSize: sizeOr(v, "1rem") }}>
+                  {isHeading ? "Brand headline" : "Readable running text"}
+                </span>
+              </ScaleRow>
+            );
+          })}
+        </ScaleCard>
 
-      <section className="scale" aria-labelledby="social-scale-title">
-        <h3 id="social-scale-title">Social scale</h3>
-        <p className="muted small">Sizes for a 1080 px square post; samples drawn at half size.</p>
-        <div className="table-wrap">
-          <table className="scale-table">
-            <thead>
-              <tr>
-                <th scope="col">Style</th>
-                <th scope="col">Size</th>
-                <th scope="col">Sample</th>
-              </tr>
-            </thead>
-            <tbody>
-              {SOCIAL_SCALE_KEYS.map((k) => {
-                const v = sys.scale.social[k];
-                return (
-                  <tr key={k}>
-                    <th scope="row">{SOCIAL_LABELS[k]}</th>
-                    <td className="mono">{v}</td>
-                    <td>
-                      <span className="scale-sample" style={{ fontFamily: k === "postTitle" ? headingFont : bodyFont, fontSize: socialPreview(v) }}>
-                        {k === "postTitle" ? "Launch day" : k === "postBody" ? "Something new is on the bench." : "Photo: studio"}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
+        <ScaleCard id="social-scale-title" title="Social scale" note="Sizes for a 1080 px square post; samples drawn at half size.">
+          {SOCIAL_SCALE_KEYS.map((k) => {
+            const v = sys.scale.social[k];
+            return (
+              <ScaleRow key={k} label={SOCIAL_LABELS[k]} size={v}>
+                <span style={{ fontFamily: k === "postTitle" ? headingFont : bodyFont, fontSize: socialPreview(v) }}>
+                  {k === "postTitle" ? "Launch day" : k === "postBody" ? "Something new is on the bench." : "Photo: studio"}
+                </span>
+              </ScaleRow>
+            );
+          })}
+        </ScaleCard>
+      </div>
     </div>
+  );
+}
+
+function ScaleCard({ id, title, note, children }: { id: string; title: string; note: string; children: ReactNode }) {
+  return (
+    <Card as="section" padding="none" className="overflow-hidden" aria-labelledby={id}>
+      <div className="px-5 pt-5 sm:px-6">
+        <CardHeader id={id} title={title} description={note} />
+      </div>
+      <div className="relative overflow-x-auto focus-visible:outline-offset-[-2px]" tabIndex={0} role="region" aria-label={`${title} table`}>
+        <table className="w-full min-w-[28rem] border-collapse text-sm">
+          <thead>
+            <tr className="border-y border-line bg-subtle text-left text-xs font-semibold uppercase tracking-wider text-fg-subtle">
+              <th scope="col" className="w-28 px-5 py-2.5 font-semibold sm:px-6">
+                Style
+              </th>
+              <th scope="col" className="w-24 px-3 py-2.5 font-semibold">
+                Size
+              </th>
+              <th scope="col" className="px-3 py-2.5 font-semibold">
+                Sample
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">{children}</tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
+function ScaleRow({ label, size, children }: { label: string; size: string; children: ReactNode }) {
+  return (
+    <tr>
+      <th scope="row" className="px-5 py-3 text-left font-medium text-fg sm:px-6">
+        {label}
+      </th>
+      <td className="px-3 py-3 font-mono text-[0.8125rem] text-fg-muted">{size}</td>
+      <td className="max-w-0 truncate px-3 py-3 pr-5 leading-tight text-fg">{children}</td>
+    </tr>
   );
 }

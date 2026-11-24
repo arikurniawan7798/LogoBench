@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { PROJECT_NAME_MAX, projectNameProblem } from "../api";
-import { BusyLabel } from "./loading";
+import { Button } from "./ui/Button";
+import { Input } from "./ui/Field";
+import { IconPencil } from "./ui/icons";
 
 /**
  * The project's <h1> with inline rename. "Rename" swaps the title for a labelled input (focused, text selected);
@@ -29,8 +31,6 @@ export default function ProjectTitle({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const wasEditing = useRef(false);
   const id = useId();
-  const errorId = `${id}-error`;
-  const hintId = `${id}-hint`;
 
   // While closed, the draft tracks the saved name, so the editor always opens with it (however it was opened).
   useEffect(() => {
@@ -85,56 +85,51 @@ export default function ProjectTitle({
 
   if (!editing) {
     return (
-      <div className="title-row">
-        <h1>{name}</h1>
-        <button ref={buttonRef} type="button" className="btn btn-small title-rename" onClick={onStart}>
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+        <h1 className="min-w-0 break-words text-2xl font-semibold tracking-tight text-fg sm:text-[1.75rem] sm:leading-9">{name}</h1>
+        <Button ref={buttonRef} variant="ghost" size="sm" icon={<IconPencil className="size-4" />} onClick={onStart}>
           Rename<span className="sr-only"> logo</span>
-        </button>
+        </Button>
       </div>
     );
   }
 
   const count = Array.from(draft.trim()).length;
   return (
-    <form className="rename-form" onSubmit={submit} noValidate>
+    <form className="flex max-w-xl flex-col gap-2" onSubmit={submit} noValidate>
       {/* the page keeps its heading while the editor is open */}
       <h1 className="sr-only">{name}</h1>
-      <label htmlFor={`${id}-input`} className="sr-only">
-        Logo name
-      </label>
-      <input
+      <Input
         ref={inputRef}
         id={`${id}-input`}
+        label="Logo name"
+        hideLabel
         type="text"
         value={draft}
         autoComplete="off"
         spellCheck={false}
-        aria-invalid={problem ? "true" : "false"}
-        aria-describedby={problem ? `${errorId} ${hintId}` : hintId}
+        className="h-11 text-lg font-semibold"
+        error={problem}
+        hint={
+          <span className={count > PROJECT_NAME_MAX ? "font-medium text-danger" : undefined}>
+            {count}/{PROJECT_NAME_MAX} · Shown in mockups, the identity page and export file names. Esc cancels.
+          </span>
+        }
+        aria-invalid={problem ? true : false}
         onChange={(e) => {
           setDraft(e.target.value);
           if (problem) setProblem(null);
         }}
         onKeyDown={onKey}
       />
-      <div className="rename-actions">
-        <button type="submit" className="btn btn-primary btn-small" disabled={saving} aria-busy={saving}>
-          <BusyLabel busy={saving} busyText="Saving…">
-            Save
-          </BusyLabel>
-        </button>
-        <button type="button" className="btn btn-small" onClick={onCancel} disabled={saving}>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="submit" variant="primary" size="sm" loading={saving} loadingText="Saving…">
+          Save
+        </Button>
+        <Button size="sm" onClick={onCancel} disabled={saving}>
           Cancel
-        </button>
-        <span id={hintId} className={`muted small${count > PROJECT_NAME_MAX ? " over" : ""}`}>
-          {count}/{PROJECT_NAME_MAX} · Shown in mockups, the identity page and export file names. Esc cancels.
-        </span>
+        </Button>
       </div>
-      {problem && (
-        <p id={errorId} className="field-error">
-          {problem}
-        </p>
-      )}
     </form>
   );
 }
