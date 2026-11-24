@@ -6,6 +6,8 @@ import Settings from "./pages/Settings";
 import ComparePage from "./pages/ComparePage";
 import FormsPage from "./pages/FormsPage";
 import ToolsPage from "./pages/ToolsPage";
+import { GlobalProgress } from "./components/loading";
+import { ToastProvider } from "./components/toast";
 
 const NAV = [
   { page: "compare", label: "Compare", to: href.compare() },
@@ -48,7 +50,8 @@ export default function App() {
   }, [route.page]);
 
   return (
-    <>
+    <ToastProvider>
+      <GlobalProgress />
       <a className="skip-link" href="#main" onClick={(e) => {
         e.preventDefault();
         document.getElementById("main")?.focus();
@@ -85,6 +88,6 @@ export default function App() {
       <footer className="footer muted small">
         LogoBench runs locally. Scores are feedback from a model, not a verdict on your work.
       </footer>
-    </>
+    </ToastProvider>
   );
 }

@@ -169,6 +169,11 @@ export class ApiRequestError extends Error implements ApiError {
 
 export function toApiError(e: unknown): ApiError {
   if (e instanceof ApiRequestError) return { code: e.code, message: e.message, retryAfterSec: e.retryAfterSec, status: e.status };
+  // Client-side problems (file checks, form validation) are already plain ApiError objects.
+  if (e && typeof e === "object" && !(e instanceof Error)) {
+    const o = e as Record<string, unknown>;
+    if (typeof o.code === "string" && typeof o.message === "string") return e as ApiError;
+  }
   return { code: "OFFLINE", message: "Could not reach the LogoBench server. Is it running?" };
 }
 
@@ -206,7 +211,42 @@ async function errorFrom(res: Response): Promise<ApiRequestError> {
   });
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+// ---- in-flight requests (drives the global progress bar) ----
+
+let inFlight = 0;
+const inFlightListeners = new Set<() => void>();
+
+/** Number of API requests currently in flight. */
+export const inFlightCount = (): number => inFlight;
+
+/** Calls `listener` whenever the in-flight count changes; returns an unsubscribe function. */
+export function subscribeInFlight(listener: () => void): () => void {
+  inFlightListeners.add(listener);
+  return () => {
+    inFlightListeners.delete(listener);
+  };
+}
+
+function setInFlight(delta: number): void {
+  inFlight = Math.max(0, inFlight + delta);
+  for (const l of [...inFlightListeners]) l();
+}
+
+/** Counts `work` as one in-flight request from the call until it settles. */
+async function track<T>(work: () => Promise<T>): Promise<T> {
+  setInFlight(1);
+  try {
+    return await work();
+  } finally {
+    setInFlight(-1);
+  }
+}
+
+const request = <T,>(path: string, init?: RequestInit): Promise<T> => track(() => requestUntracked<T>(path, init));
+const requestVoid = (path: string, init?: RequestInit): Promise<void> => track(() => requestVoidUntracked(path, init));
+const requestBlob = (path: string, init?: RequestInit): Promise<Blob> => track(() => requestBlobUntracked(path, init));
+
+async function requestUntracked<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(path, init);
@@ -217,7 +257,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-async function requestVoid(path: string, init?: RequestInit): Promise<void> {
+async function requestVoidUntracked(path: string, init?: RequestInit): Promise<void> {
   let res: Response;
   try {
     res = await fetch(path, init);
@@ -326,7 +366,7 @@ export const api = {
   },
 };
 
-async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
+async function requestBlobUntracked(path: string, init?: RequestInit): Promise<Blob> {
   let res: Response;
   try {
     res = await fetch(path, init);
@@ -386,7 +426,11 @@ export function parseFrames(buffer: string): { events: StepEvent[]; rest: string
  * POST /create-identity and feed each streamed step event to `onEvent`. Non-2xx answers (404, 409 "already running")
  * are plain JSON and reject as ApiRequestError. Rejects with the abort reason when `signal` aborts.
  */
-export async function streamCreateIdentity(id: string, onEvent: (e: StepEvent) => void, signal?: AbortSignal): Promise<void> {
+export function streamCreateIdentity(id: string, onEvent: (e: StepEvent) => void, signal?: AbortSignal): Promise<void> {
+  return track(() => streamCreateIdentityUntracked(id, onEvent, signal));
+}
+
+async function streamCreateIdentityUntracked(id: string, onEvent: (e: StepEvent) => void, signal?: AbortSignal): Promise<void> {
   let res: Response;
   try {
     res = await fetch(`/api/projects/${enc(id)}/create-identity`, { method: "POST", signal });

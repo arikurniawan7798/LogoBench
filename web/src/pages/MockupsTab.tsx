@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { api, toApiError, urls, type ApiError, type MockupSpec } from "../api";
+import { api, urls, type ApiError, type MockupSpec } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
+import { Skeleton } from "../components/loading";
+import { useApiError } from "../components/toast";
 import { href } from "../router";
 
 export default function MockupsTab({ projectId, versionId }: { projectId: string; versionId?: string }) {
@@ -8,6 +10,7 @@ export default function MockupsTab({ projectId, versionId }: { projectId: string
   const [error, setError] = useState<ApiError | null>(null);
   const [round, setRound] = useState(0);
   const [failed, setFailed] = useState<Record<string, boolean>>({});
+  const report = useApiError();
 
   useEffect(() => {
     let live = true;
@@ -16,13 +19,13 @@ export default function MockupsTab({ projectId, versionId }: { projectId: string
       (e) => {
         if (!live) return;
         setSpecs([]);
-        setError(toApiError(e));
+        setError(report(e));
       },
     );
     return () => {
       live = false;
     };
-  }, []);
+  }, [report]);
 
   // Rendered fresh by the server on every request; the bust value forces a re-fetch after colors/type change.
   const bust = `${versionId ?? ""}-${round}`;
@@ -55,9 +58,7 @@ export default function MockupsTab({ projectId, versionId }: { projectId: string
       </div>
 
       {specs === null && (
-        <p className="muted" role="status">
-          Loading mockups…
-        </p>
+        <Skeleton label="Loading mockups…" lines={4} variant="cards" />
       )}
 
       <ul className="mockup-grid">

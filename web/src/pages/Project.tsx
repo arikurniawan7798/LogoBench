@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
-import { api, logoUrl, toApiError, type ApiError, type Project as ProjectT } from "../api";
+import { api, logoUrl, type ApiError, type Project as ProjectT } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
+import { BusyLabel, Skeleton } from "../components/loading";
+import { useApiError, useToast } from "../components/toast";
 import { ACCEPT, checkFile } from "../files";
 import { href, navigate } from "../router";
 import ReviewTab from "./ReviewTab";
@@ -25,6 +27,8 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
   const [project, setProject] = useState<ProjectT | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [uploading, setUploading] = useState(false);
+  const report = useApiError();
+  const toast = useToast();
   const uploadingRef = useRef(false); // double-submit guard (state updates are async)
   const idRef = useRef(id);
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -37,12 +41,12 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
     setError(null);
     api.getProject(id).then(
       (p) => live && setProject(p),
-      (e) => live && setError(toApiError(e)),
+      (e) => live && setError(report(e)),
     );
     return () => {
       live = false;
     };
-  }, [id]);
+  }, [id, report]);
 
   async function onNewVersion(e: ChangeEvent<HTMLInputElement>) {
     const input = e.currentTarget;
@@ -51,7 +55,7 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
     if (!file || uploadingRef.current) return;
     const problem = checkFile(file);
     if (problem) {
-      setError(problem);
+      setError(report(problem));
       return;
     }
     const forId = id;
@@ -60,9 +64,12 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
     setError(null);
     try {
       const updated = await api.addVersion(forId, file);
-      if (idRef.current === forId) setProject(updated);
+      if (idRef.current === forId) {
+        setProject(updated);
+        toast.success("New version uploaded.", "The tabs now show the latest version.");
+      }
     } catch (err) {
-      if (idRef.current === forId) setError(toApiError(err));
+      if (idRef.current === forId) setError(report(err));
     } finally {
       uploadingRef.current = false;
       setUploading(false);
@@ -95,9 +102,7 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
             <a href={href.home()}>Back to your logos</a>
           </p>
         ) : (
-          <p className="muted" role="status">
-            Loading project…
-          </p>
+          <Skeleton label="Loading project…" lines={3} />
         )}
       </div>
     );
@@ -132,7 +137,9 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
             onChange={onNewVersion}
           />
           <label htmlFor="new-version-file" className={`btn${uploading ? " is-disabled" : ""}`} aria-busy={uploading}>
-            {uploading ? "Uploading…" : "Upload new version"}
+            <BusyLabel busy={uploading} busyText="Uploading…">
+              Upload new version
+            </BusyLabel>
           </label>
           <p className="muted small">SVG, PNG, JPG or WebP, up to 10 MB. Tabs refresh for the new version.</p>
         </div>

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   IDENTITY_STEPS,
   streamCreateIdentity,
-  toApiError,
   urls,
   type ApiError,
   type IdentityStep,
@@ -10,6 +9,8 @@ import {
   type StepEvent,
 } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
+import { BusyLabel, BusyPanel, Spinner } from "../components/loading";
+import { useApiError, useToast } from "../components/toast";
 
 const STEP_COPY: Record<IdentityStep, { label: string; detail: string }> = {
   review: { label: "Review", detail: "Scores and brand personality (reuses a cached review when nothing changed)." },
@@ -43,6 +44,8 @@ export default function IdentityTab({ projectId }: { projectId: string }) {
   const [error, setError] = useState<ApiError | null>(null);
   const runningRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  const report = useApiError();
+  const toast = useToast();
 
   // Abort an in-flight run when the tab unmounts or the project changes.
   useEffect(() => {
@@ -73,6 +76,11 @@ export default function IdentityTab({ projectId }: { projectId: string }) {
         setSteps((s) => ({ ...s, [e.step]: { status: "running" } }));
       } else if (e.type === "end" && isStep(e.step)) {
         setSteps((s) => ({ ...s, [e.step]: { status: e.status, error: e.error, note: e.note } }));
+        if (e.status === "failed")
+          toast.error(
+            { code: e.error?.code ?? "SERVER", message: e.error?.message ?? "This step failed." },
+            { title: `${STEP_COPY[e.step].label} step failed` },
+          );
       } else if (e.type === "done" && Array.isArray(e.results)) {
         finished = true;
         setSteps((s) => {
@@ -82,7 +90,7 @@ export default function IdentityTab({ projectId }: { projectId: string }) {
         });
       } else if (e.type === "error") {
         failed = true;
-        setError({ code: e.error?.code ?? "SERVER", message: e.error?.message ?? "Create identity stopped unexpectedly." });
+        setError(report({ code: e.error?.code ?? "SERVER", message: e.error?.message ?? "Create identity stopped unexpectedly." }));
       }
     };
 
@@ -93,12 +101,12 @@ export default function IdentityTab({ projectId }: { projectId: string }) {
       else {
         setPhase("stopped");
         if (!failed)
-          setError({ code: "SERVER", message: "The run ended before all steps reported back. Steps marked done were saved; try again." });
+          setError(report({ code: "SERVER", message: "The run ended before all steps reported back. Steps marked done were saved; try again." }));
       }
     } catch (err) {
       if (ctrl.signal.aborted) return;
       setPhase("stopped");
-      setError(toApiError(err));
+      setError(report(err));
     } finally {
       if (abortRef.current === ctrl) {
         abortRef.current = null;
@@ -135,10 +143,14 @@ export default function IdentityTab({ projectId }: { projectId: string }) {
         </div>
         <div className="section-actions">
           <button type="button" className="btn btn-primary" onClick={run} disabled={running} aria-busy={running}>
-            {running ? "Creating…" : phase === "idle" ? "Create identity" : "Create identity again"}
+            <BusyLabel busy={running} busyText="Creating…">
+              {phase === "idle" ? "Create identity" : "Create identity again"}
+            </BusyLabel>
           </button>
         </div>
       </div>
+
+      <BusyPanel active={running} message="Creating the identity. Each AI step can take up to a minute." />
 
       <ol className="steps" aria-label="Steps">
         {IDENTITY_STEPS.map((step) => {
@@ -147,7 +159,7 @@ export default function IdentityTab({ projectId }: { projectId: string }) {
           return (
             <li key={step} className={`step step-${st.status}`} aria-labelledby={labelId}>
               <span className="step-icon" aria-hidden="true">
-                {STATUS_ICON[st.status]}
+                {st.status === "running" ? <Spinner /> : STATUS_ICON[st.status]}
               </span>
               <div className="step-body">
                 <div className="step-top">

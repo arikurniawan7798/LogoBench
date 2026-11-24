@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { api, toApiError, type ApiError, type BrandPalette, type PaletteResponse, type Swatch } from "../api";
+import { api, type ApiError, type BrandPalette, type PaletteResponse, type Swatch } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
+import { BusyLabel, BusyPanel, Skeleton } from "../components/loading";
+import { useApiError, useToast, useToastsEnabled } from "../components/toast";
 import { contrastRatio, HEX_RE, inkOn, luminance, makeSwatch, safeHex } from "../color";
 
 type Slot = { key: string; label: string; role: "main" | "support" | "neutral"; index: number; swatch: Swatch };
@@ -36,6 +38,9 @@ export default function ColorsTab({ projectId }: { projectId: string }) {
   const [invalid, setInvalid] = useState(false);
   const [busy, setBusy] = useState<"save" | "suggest" | null>(null);
   const [notice, setNotice] = useState("");
+  const report = useApiError();
+  const toast = useToast();
+  const toastsOn = useToastsEnabled();
 
   useEffect(() => {
     let live = true;
@@ -43,12 +48,12 @@ export default function ColorsTab({ projectId }: { projectId: string }) {
     setError(null);
     api.getPalette(projectId).then(
       (p) => live && setPalette(strip(p)),
-      (e) => live && setError(toApiError(e)),
+      (e) => live && setError(report(e)),
     );
     return () => {
       live = false;
     };
-  }, [projectId]);
+  }, [projectId, report]);
 
   function startEdit(slot: Slot) {
     setEditing(slot.key);
@@ -75,8 +80,9 @@ export default function ColorsTab({ projectId }: { projectId: string }) {
       setPalette(strip(saved));
       setEditing(null);
       setNotice(`${slot.label} color saved.`);
+      toast.success(`${slot.label} color saved.`);
     } catch (err) {
-      setError(toApiError(err));
+      setError(report(err));
     } finally {
       setBusy(null);
     }
@@ -91,9 +97,11 @@ export default function ColorsTab({ projectId }: { projectId: string }) {
       const r = await api.suggestPalette(projectId);
       setPalette(strip(r));
       setEditing(null);
-      setNotice(r.replacedSaved ? "AI suggestion saved. It replaced the palette you had saved before." : "AI suggestion saved.");
+      const msg = r.replacedSaved ? "AI suggestion saved. It replaced the palette you had saved before." : "AI suggestion saved.";
+      setNotice(msg);
+      toast.success("Colors saved.", msg);
     } catch (err) {
-      setError(toApiError(err));
+      setError(report(err));
     } finally {
       setBusy(null);
     }
@@ -104,9 +112,7 @@ export default function ColorsTab({ projectId }: { projectId: string }) {
       <div className="colors">
         <ErrorBanner error={error} onDismiss={() => setError(null)} />
         {!error && (
-          <p className="muted" role="status">
-            Loading colors…
-          </p>
+          <Skeleton label="Loading colors…" lines={4} variant="cards" />
         )}
       </div>
     );
@@ -131,11 +137,14 @@ export default function ColorsTab({ projectId }: { projectId: string }) {
         </div>
         <div className="section-actions">
           <button type="button" className="btn" onClick={suggest} disabled={busy !== null} aria-busy={busy === "suggest"}>
-            {busy === "suggest" ? "Asking the model…" : "Suggest with AI"}
+            <BusyLabel busy={busy === "suggest"} busyText="Asking the model…">
+              Suggest with AI
+            </BusyLabel>
           </button>
         </div>
       </div>
       <p className="muted small">AI suggestions replace a palette you have edited and saved.</p>
+      <BusyPanel active={busy === "suggest"} message="Asking the model to name your colors and pick the main one…" />
 
       <p className="note-callout">
         <strong>CMYK</strong> values are a simple conversion: approximate, not print-accurate. Ask your printer for a proof.
@@ -208,7 +217,9 @@ export default function ColorsTab({ projectId }: { projectId: string }) {
                     </div>
                     <div className="form-actions">
                       <button type="submit" className="btn btn-primary" disabled={busy !== null} aria-busy={busy === "save"}>
-                        {busy === "save" ? "Saving…" : "Save"}
+                        <BusyLabel busy={busy === "save"} busyText="Saving…">
+                          Save
+                        </BusyLabel>
                       </button>
                       <button type="button" className="btn" onClick={() => setEditing(null)} disabled={busy === "save"}>
                         Cancel
@@ -232,7 +243,7 @@ export default function ColorsTab({ projectId }: { projectId: string }) {
         })}
       </div>
 
-      <p className="muted small" role="status">
+      <p className="muted small" role={toastsOn ? undefined : "status"}>
         {notice}
       </p>
 

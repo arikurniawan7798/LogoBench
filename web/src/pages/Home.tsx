@@ -1,6 +1,8 @@
 import { useEffect, useState, type DragEvent, type FormEvent } from "react";
-import { api, logoUrl, toApiError, type ApiError, type Project } from "../api";
+import { api, logoUrl, type ApiError, type Project } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
+import { BusyLabel, Skeleton } from "../components/loading";
+import { useApiError } from "../components/toast";
 import { href, navigate } from "../router";
 import { ACCEPT, checkFile } from "../files";
 
@@ -11,6 +13,7 @@ export default function Home() {
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  const report = useApiError();
 
   useEffect(() => {
     let live = true;
@@ -19,18 +22,18 @@ export default function Home() {
       (e) => {
         if (!live) return;
         setProjects([]);
-        setError(toApiError(e));
+        setError(report(e));
       },
     );
     return () => {
       live = false;
     };
-  }, []);
+  }, [report]);
 
   function pick(f: File | undefined) {
     if (!f) return;
     const problem = checkFile(f);
-    setError(problem);
+    setError(problem ? report(problem) : null);
     setFile(problem ? null : f);
   }
 
@@ -43,7 +46,7 @@ export default function Home() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!file) {
-      setError({ code: "BAD_REQUEST", message: "Choose a logo file first." });
+      setError(report({ code: "BAD_REQUEST", message: "Choose a logo file first." }));
       return;
     }
     setUploading(true);
@@ -52,7 +55,7 @@ export default function Home() {
       const project = await api.createProject(file, name);
       navigate(href.project(project.id, "review"));
     } catch (err) {
-      setError(toApiError(err));
+      setError(report(err));
       setUploading(false);
     }
   }
@@ -113,7 +116,9 @@ export default function Home() {
             />
           </div>
           <button type="submit" className="btn btn-primary" disabled={uploading || !file} aria-busy={uploading}>
-            {uploading ? "Uploading…" : "Upload logo"}
+            <BusyLabel busy={uploading} busyText="Uploading…">
+              Upload logo
+            </BusyLabel>
           </button>
         </div>
       </form>
@@ -121,9 +126,7 @@ export default function Home() {
       <section className="history" aria-labelledby="history-title">
         <h2 id="history-title">Your logos</h2>
         {projects === null && (
-          <p className="muted" role="status">
-            Loading…
-          </p>
+          <Skeleton label="Loading your logos…" lines={3} variant="cards" />
         )}
         {projects !== null && projects.length === 0 && (
           <div className="empty">

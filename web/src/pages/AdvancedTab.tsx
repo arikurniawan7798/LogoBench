@@ -1,7 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import {
   api,
-  toApiError,
   urls,
   MAX_BRIEF_CHARS,
   type AdvancedResult,
@@ -11,6 +10,8 @@ import {
   type Priority,
 } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
+import { BusyLabel, BusyPanel, Skeleton } from "../components/loading";
+import { useApiError, useToast, useToastsEnabled } from "../components/toast";
 import ScoreList from "../components/ScoreList";
 import { href } from "../router";
 
@@ -24,6 +25,7 @@ export default function AdvancedTab({ projectId }: { projectId: string }) {
   const [result, setResult] = useState<{ data: AdvancedResult; cached: boolean } | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  const report = useApiError();
 
   useEffect(() => {
     setResult(null);
@@ -38,7 +40,7 @@ export default function AdvancedTab({ projectId }: { projectId: string }) {
       const r = await api.runAdvancedReview(projectId, { force });
       setResult({ data: r.result, cached: r.cached });
     } catch (e) {
-      setError(toApiError(e));
+      setError(report(e));
     } finally {
       setRunning(false);
     }
@@ -66,15 +68,21 @@ export default function AdvancedTab({ projectId }: { projectId: string }) {
           )}
           {result ? (
             <button type="button" className="btn" onClick={() => run(true)} disabled={running} aria-busy={running}>
-              {running ? "Reviewing…" : "Re-run"}
+              <BusyLabel busy={running} busyText="Reviewing…">
+                Re-run
+              </BusyLabel>
             </button>
           ) : (
             <button type="button" className="btn btn-primary" onClick={() => run(false)} disabled={running} aria-busy={running}>
-              {running ? "Reviewing…" : "Run advanced review"}
+              <BusyLabel busy={running} busyText="Reviewing…">
+                Run advanced review
+              </BusyLabel>
             </button>
           )}
         </div>
       </div>
+
+      <BusyPanel active={running} message="Asking the model for an advanced review against your brief…" />
 
       {result && <AdvancedResultView projectId={projectId} r={result.data} />}
     </div>
@@ -159,6 +167,9 @@ function BriefPanel({ projectId }: { projectId: string }) {
   const [busy, setBusy] = useState<"brief" | "form" | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [notice, setNotice] = useState("");
+  const report = useApiError();
+  const toast = useToast();
+  const toastsOn = useToastsEnabled();
 
   useEffect(() => {
     let live = true;
@@ -174,13 +185,13 @@ function BriefPanel({ projectId }: { projectId: string }) {
       (e) => {
         if (!live) return;
         setCombined("");
-        setError(toApiError(e));
+        setError(report(e));
       },
     );
     return () => {
       live = false;
     };
-  }, [projectId]);
+  }, [projectId, report]);
 
   async function saveBrief(e: FormEvent) {
     e.preventDefault();
@@ -192,8 +203,9 @@ function BriefPanel({ projectId }: { projectId: string }) {
       setCombined(r.text);
       setFree(r.free);
       setNotice("Brief saved.");
+      toast.success("Brief saved.");
     } catch (err) {
-      setError(toApiError(err));
+      setError(report(err));
     } finally {
       setBusy(null);
     }
@@ -211,8 +223,9 @@ function BriefPanel({ projectId }: { projectId: string }) {
       setTemplateId("");
       setAnswers({});
       setNotice("Form answers added to the brief.");
+      toast.success("Form answers added to the brief.");
     } catch (err) {
-      setError(toApiError(err));
+      setError(report(err));
     } finally {
       setBusy(null);
     }
@@ -225,9 +238,7 @@ function BriefPanel({ projectId }: { projectId: string }) {
       <h2 id="brief-title">Brief</h2>
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
       {combined === null ? (
-        <p className="muted" role="status">
-          Loading brief…
-        </p>
+        <Skeleton label="Loading brief…" lines={3} />
       ) : (
         <>
           <form onSubmit={saveBrief}>
@@ -247,7 +258,9 @@ function BriefPanel({ projectId }: { projectId: string }) {
             </div>
             <div className="form-actions">
               <button type="submit" className="btn" disabled={busy !== null} aria-busy={busy === "brief"}>
-                {busy === "brief" ? "Saving…" : "Save brief"}
+                <BusyLabel busy={busy === "brief"} busyText="Saving…">
+                  Save brief
+                </BusyLabel>
               </button>
             </div>
           </form>
@@ -315,7 +328,9 @@ function BriefPanel({ projectId }: { projectId: string }) {
                 {template && (
                   <div className="form-actions">
                     <button type="submit" className="btn" disabled={busy !== null} aria-busy={busy === "form"}>
-                      {busy === "form" ? "Saving…" : "Add answers to brief"}
+                      <BusyLabel busy={busy === "form"} busyText="Saving…">
+                        Add answers to brief
+                      </BusyLabel>
                     </button>
                   </div>
                 )}
@@ -329,7 +344,7 @@ function BriefPanel({ projectId }: { projectId: string }) {
               <p className="pre-wrap small">{combined}</p>
             </details>
           )}
-          <p className="muted small" role="status">
+          <p className="muted small" role={toastsOn ? undefined : "status"}>
             {notice}
           </p>
         </>

@@ -2,7 +2,6 @@ import { useEffect, useState, type FormEvent } from "react";
 import {
   api,
   logoUrl,
-  toApiError,
   DIMENSIONS,
   MAX_BRIEF_CHARS,
   type ApiError,
@@ -11,6 +10,8 @@ import {
   type Project,
 } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
+import { BusyLabel, BusyPanel, Skeleton, Spinner } from "../components/loading";
+import { useApiError } from "../components/toast";
 import { DIMENSION_COPY } from "../components/ScoreList";
 import { href } from "../router";
 
@@ -29,6 +30,7 @@ export default function ComparePage() {
   const [briefFrom, setBriefFrom] = useState("");
   const [briefNote, setBriefNote] = useState("");
   const [loadingBrief, setLoadingBrief] = useState(false);
+  const report = useApiError();
 
   useEffect(() => {
     let live = true;
@@ -41,13 +43,13 @@ export default function ComparePage() {
       (e) => {
         if (!live) return;
         setProjects([]);
-        setError(toApiError(e));
+        setError(report(e));
       },
     );
     return () => {
       live = false;
     };
-  }, []);
+  }, [report]);
 
   const byId = new Map((projects ?? []).map((p) => [p.id, p]));
   const nameOf = (id: string) => byId.get(id)?.name ?? "Deleted project";
@@ -80,7 +82,7 @@ export default function ComparePage() {
         ...h.filter((x) => x.id !== c.id),
       ]);
     } catch (err) {
-      setError(toApiError(err));
+      setError(report(err));
     } finally {
       setRunning(false);
     }
@@ -109,7 +111,7 @@ export default function ComparePage() {
         setBriefNote(`Loaded the brief from ${name}. Edit it freely; the project's own brief is not changed.`);
       }
     } catch (err) {
-      setError(toApiError(err));
+      setError(report(err));
     } finally {
       setLoadingBrief(false);
       setBriefFrom("");
@@ -121,7 +123,7 @@ export default function ComparePage() {
     try {
       setResult(await api.getCompare(id));
     } catch (err) {
-      setError(toApiError(err));
+      setError(report(err));
     }
   }
 
@@ -132,7 +134,7 @@ export default function ComparePage() {
       setHistory((h) => h.filter((x) => x.id !== id));
       setResult((r) => (r?.id === id ? null : r));
     } catch (err) {
-      setError(toApiError(err));
+      setError(report(err));
     }
   }
 
@@ -147,9 +149,7 @@ export default function ComparePage() {
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
 
       {projects === null && (
-        <p className="muted" role="status">
-          Loading your logos…
-        </p>
+        <Skeleton label="Loading your logos…" lines={3} variant="cards" />
       )}
 
       {projects !== null && projects.length < MIN && !error && (
@@ -222,6 +222,7 @@ export default function ComparePage() {
                   </option>
                 ))}
               </select>
+              {loadingBrief && <Spinner label="Loading the brief" />}
             </div>
             {briefNote && (
               <p className="muted small" role="status">
@@ -231,9 +232,12 @@ export default function ComparePage() {
           </div>
           <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={running} aria-busy={running}>
-              {running ? "Comparing…" : "Compare logos"}
+              <BusyLabel busy={running} busyText="Comparing…">
+                Compare logos
+              </BusyLabel>
             </button>
           </div>
+          <BusyPanel active={running} message="Asking the model to compare your logos…" />
         </form>
       )}
 

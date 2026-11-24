@@ -1,6 +1,8 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
-import { api, toApiError, SOCIAL_SCALE_KEYS, WEB_SCALE_KEYS, type ApiError, type TypeSystem } from "../api";
+import { api, SOCIAL_SCALE_KEYS, WEB_SCALE_KEYS, type ApiError, type TypeSystem } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
+import { BusyLabel, BusyPanel, Skeleton } from "../components/loading";
+import { useApiError, useToast, useToastsEnabled } from "../components/toast";
 
 const ROLES = [
   { key: "heading", label: "Heading" },
@@ -42,6 +44,9 @@ export default function TypeTab({ projectId }: { projectId: string }) {
   const [busy, setBusy] = useState<"save" | "suggest" | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [notice, setNotice] = useState("");
+  const report = useApiError();
+  const toast = useToast();
+  const toastsOn = useToastsEnabled();
 
   function adopt(t: TypeSystem) {
     setSys(t);
@@ -53,12 +58,12 @@ export default function TypeTab({ projectId }: { projectId: string }) {
     setSys(null);
     api.getType(projectId).then(
       (t) => live && adopt(t),
-      (e) => live && setError(toApiError(e)),
+      (e) => live && setError(report(e)),
     );
     return () => {
       live = false;
     };
-  }, [projectId]);
+  }, [projectId, report]);
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -75,8 +80,9 @@ export default function TypeTab({ projectId }: { projectId: string }) {
       };
       adopt(await api.saveType(projectId, next));
       setNotice("Type system saved.");
+      toast.success("Type system saved.");
     } catch (err) {
-      setError(toApiError(err));
+      setError(report(err));
     } finally {
       setBusy(null);
     }
@@ -94,8 +100,9 @@ export default function TypeTab({ projectId }: { projectId: string }) {
       if (r.replacedSaved) parts.push("It replaced the type system you had saved before.");
       if (r.fallbacks.length) parts.push(`The model named a font outside the curated list for ${r.fallbacks.join(", ")}; a curated font was used instead.`);
       setNotice(parts.join(" "));
+      toast.success("Fonts saved.", parts.join(" "));
     } catch (err) {
-      setError(toApiError(err));
+      setError(report(err));
     } finally {
       setBusy(null);
     }
@@ -106,9 +113,7 @@ export default function TypeTab({ projectId }: { projectId: string }) {
       <div className="type">
         <ErrorBanner error={error} onDismiss={() => setError(null)} />
         {!error && (
-          <p className="muted" role="status">
-            Loading type…
-          </p>
+          <Skeleton label="Loading type…" lines={4} />
         )}
       </div>
     );
@@ -130,11 +135,14 @@ export default function TypeTab({ projectId }: { projectId: string }) {
         </div>
         <div className="section-actions">
           <button type="button" className="btn" onClick={suggest} disabled={busy !== null} aria-busy={busy === "suggest"}>
-            {busy === "suggest" ? "Asking the model…" : "Suggest with AI"}
+            <BusyLabel busy={busy === "suggest"} busyText="Asking the model…">
+              Suggest with AI
+            </BusyLabel>
           </button>
         </div>
       </div>
       <p className="muted small">AI suggestions replace a type system you have edited and saved.</p>
+      <BusyPanel active={busy === "suggest"} message="Asking the model to pair fonts for your logo…" />
 
       <p className="note-callout">
         Previews use each font only if it is installed on this computer, otherwise your system font. Nothing is downloaded while you
@@ -179,9 +187,11 @@ export default function TypeTab({ projectId }: { projectId: string }) {
         </div>
         <div className="form-actions">
           <button type="submit" className="btn btn-primary" disabled={busy !== null} aria-busy={busy === "save"}>
-            {busy === "save" ? "Saving…" : "Save fonts"}
+            <BusyLabel busy={busy === "save"} busyText="Saving…">
+              Save fonts
+            </BusyLabel>
           </button>
-          <span className="muted small" role="status">
+          <span className="muted small" role={toastsOn ? undefined : "status"}>
             {notice}
           </span>
         </div>

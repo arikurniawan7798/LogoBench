@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { api, toApiError, type ApiError, type Personality, type ReviewResult } from "../api";
+import { api, type ApiError, type Personality, type ReviewResult } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
+import { BusyLabel, BusyPanel, Skeleton } from "../components/loading";
+import { useApiError } from "../components/toast";
 import ScoreList from "../components/ScoreList";
 
 const PERSONALITY_LABELS: Record<keyof Personality, string> = {
@@ -21,6 +23,7 @@ export default function ReviewTab({ projectId }: { projectId: string }) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  const report = useApiError();
 
   useEffect(() => {
     let live = true;
@@ -31,13 +34,13 @@ export default function ReviewTab({ projectId }: { projectId: string }) {
       (e) => {
         if (!live) return;
         setState({ status: "empty" });
-        setError(toApiError(e));
+        setError(report(e));
       },
     );
     return () => {
       live = false;
     };
-  }, [projectId]);
+  }, [projectId, report]);
 
   async function run(force: boolean) {
     setRunning(true);
@@ -46,7 +49,7 @@ export default function ReviewTab({ projectId }: { projectId: string }) {
       const r = await api.runReview(projectId, { force });
       setState({ status: "ready", result: r.result, cached: r.cached });
     } catch (e) {
-      setError(toApiError(e));
+      setError(report(e));
     } finally {
       setRunning(false);
     }
@@ -55,11 +58,10 @@ export default function ReviewTab({ projectId }: { projectId: string }) {
   return (
     <div className="review">
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
+      <BusyPanel active={running} message="Asking the model to review your logo…" />
 
       {state.status === "loading" && (
-        <p className="muted" role="status">
-          Loading review…
-        </p>
+        <Skeleton label="Loading review…" lines={4} />
       )}
 
       {state.status === "empty" && (
@@ -70,7 +72,9 @@ export default function ReviewTab({ projectId }: { projectId: string }) {
             projects.
           </p>
           <button type="button" className="btn btn-primary" onClick={() => run(false)} disabled={running} aria-busy={running}>
-            {running ? "Reviewing…" : "Run review"}
+            <BusyLabel busy={running} busyText="Reviewing…">
+              Run review
+            </BusyLabel>
           </button>
         </div>
       )}
@@ -92,7 +96,9 @@ export default function ReviewTab({ projectId }: { projectId: string }) {
               )}
               {state.createdAt && <span className="muted small">Reviewed {formatDate(state.createdAt)}</span>}
               <button type="button" className="btn" onClick={() => run(true)} disabled={running} aria-busy={running}>
-                {running ? "Reviewing…" : "Re-run"}
+                <BusyLabel busy={running} busyText="Reviewing…">
+                  Re-run
+                </BusyLabel>
               </button>
             </div>
           </div>

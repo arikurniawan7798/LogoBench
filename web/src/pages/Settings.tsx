@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { api, toApiError, type ApiError, type PublicSettings, type SettingsInput } from "../api";
+import { api, type ApiError, type PublicSettings, type SettingsInput } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
+import { BusyLabel, Skeleton } from "../components/loading";
+import { useApiError, useToast, useToastsEnabled } from "../components/toast";
 
 export default function Settings() {
   const [saved, setSaved] = useState<PublicSettings | null>(null);
@@ -8,6 +10,9 @@ export default function Settings() {
   const [error, setError] = useState<ApiError | null>(null);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
+  const report = useApiError();
+  const toast = useToast();
+  const toastsOn = useToastsEnabled();
 
   useEffect(() => {
     let live = true;
@@ -17,12 +22,12 @@ export default function Settings() {
         setSaved(s);
         setForm({ provider: s.provider, geminiModel: s.geminiModel, ollamaModel: s.ollamaModel, ollamaUrl: s.ollamaUrl });
       },
-      (e) => live && setError(toApiError(e)),
+      (e) => live && setError(report(e)),
     );
     return () => {
       live = false;
     };
-  }, []);
+  }, [report]);
 
   const set = <K extends keyof SettingsInput>(k: K, v: SettingsInput[K]) => {
     setNotice("");
@@ -39,8 +44,9 @@ export default function Settings() {
       const s = await api.saveSettings(form);
       setSaved(s);
       setNotice("Settings saved. They apply to the next AI request.");
+      toast.success("Settings saved.", "They apply to the next AI request.");
     } catch (err) {
-      setError(toApiError(err));
+      setError(report(err));
     } finally {
       setSaving(false);
     }
@@ -54,9 +60,7 @@ export default function Settings() {
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
 
       {!form && !error && (
-        <p className="muted" role="status">
-          Loading settings…
-        </p>
+        <Skeleton label="Loading settings…" lines={4} />
       )}
 
       {form && saved && (
@@ -147,9 +151,12 @@ export default function Settings() {
 
           <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={saving} aria-busy={saving}>
-              {saving ? "Saving…" : "Save settings"}
+              <BusyLabel busy={saving} busyText="Saving…">
+                Save settings
+              </BusyLabel>
             </button>
-            <span role="status" className="muted">
+            {/* With toasts on, the success toast is the announcer; this stays as a visible note. */}
+            <span role={toastsOn ? undefined : "status"} className="muted">
               {notice}
             </span>
           </div>

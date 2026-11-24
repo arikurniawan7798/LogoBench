@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { api, saveBlob, toApiError, type ApiError } from "../api";
+import { api, saveBlob, type ApiError } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
+import { BusyLabel } from "../components/loading";
+import { useApiError, useToast, useToastsEnabled } from "../components/toast";
 import { ACCEPT, checkFile } from "../files";
 import { HEX_RE } from "../color";
 
@@ -53,6 +55,9 @@ function FaviconTool() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const [notice, setNotice] = useState("");
+  const report = useApiError();
+  const toast = useToast();
+  const toastsOn = useToastsEnabled();
   const live = useRef(true);
   useEffect(() => {
     live.current = true;
@@ -65,7 +70,7 @@ function FaviconTool() {
     e.preventDefault();
     if (busy) return;
     if (!file) {
-      setError({ code: "BAD_REQUEST", message: "Choose an image first." });
+      setError(report({ code: "BAD_REQUEST", message: "Choose an image first." }));
       return;
     }
     setBusy(true);
@@ -76,8 +81,9 @@ function FaviconTool() {
       if (!live.current) return;
       saveBlob(blob, "favicons.zip");
       setNotice("favicons.zip is downloading.");
+      toast.success("favicons.zip is downloading.");
     } catch (err) {
-      if (live.current) setError(toApiError(err));
+      if (live.current) setError(report(err));
     } finally {
       if (live.current) setBusy(false);
     }
@@ -96,14 +102,16 @@ function FaviconTool() {
         file={file}
         onPick={(f, problem) => {
           setFile(f);
-          setError(problem);
+          setError(problem ? report(problem) : null);
         }}
       />
       <div className="form-actions">
         <button type="submit" className="btn btn-primary" disabled={busy} aria-busy={busy}>
-          {busy ? "Generating…" : "Download favicons (.zip)"}
+          <BusyLabel busy={busy} busyText="Generating…">
+            Download favicons (.zip)
+          </BusyLabel>
         </button>
-        <span className="muted small" role="status">
+        <span className="muted small" role={toastsOn ? undefined : "status"}>
           {notice}
         </span>
       </div>
@@ -120,6 +128,7 @@ function BackgroundTool() {
   const [error, setError] = useState<ApiError | null>(null);
   const [preview, setPreview] = useState<{ url: string; w: number; h: number } | null>(null);
   const previewRef = useRef<string | null>(null);
+  const report = useApiError();
   const live = useRef(true);
 
   // Revoke the preview's object URL when it is replaced and on unmount.
@@ -148,15 +157,15 @@ function BackgroundTool() {
     e.preventDefault();
     if (busy) return;
     if (!dimsOk) {
-      setError({ code: "INVALID", message: `Width and height must be whole numbers from ${MIN_DIM} to ${MAX_DIM}.` });
+      setError(report({ code: "INVALID", message: `Width and height must be whole numbers from ${MIN_DIM} to ${MAX_DIM}.` }));
       return;
     }
     if (w * h > MAX_PIXELS) {
-      setError({ code: "INVALID", message: "That is too large: width × height must be at most 33 megapixels." });
+      setError(report({ code: "INVALID", message: "That is too large: width × height must be at most 33 megapixels." }));
       return;
     }
     if (!colorOk) {
-      setError({ code: "INVALID", message: "Background color must be a hex color like #0F6B5E." });
+      setError(report({ code: "INVALID", message: "Background color must be a hex color like #0F6B5E." }));
       return;
     }
     setBusy(true);
@@ -165,7 +174,7 @@ function BackgroundTool() {
       const blob = await api.makeBackground({ width: w, height: h, color: color.toUpperCase(), logo });
       if (live.current) showPreview(blob, w, h);
     } catch (err) {
-      if (live.current) setError(toApiError(err));
+      if (live.current) setError(report(err));
     } finally {
       if (live.current) setBusy(false);
     }
@@ -232,13 +241,15 @@ function BackgroundTool() {
         file={logo}
         onPick={(f, problem) => {
           setLogo(f);
-          setError(problem);
+          setError(problem ? report(problem) : null);
         }}
       />
 
       <div className="form-actions">
         <button type="submit" className="btn btn-primary" disabled={busy} aria-busy={busy}>
-          {busy ? "Generating…" : "Generate background"}
+          <BusyLabel busy={busy} busyText="Generating…">
+            Generate background
+          </BusyLabel>
         </button>
         {preview && (
           <a className="btn" href={preview.url} download="background.png">

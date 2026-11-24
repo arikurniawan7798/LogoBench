@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { api, toApiError, type ApiError, type FormQuestionInput, type FormTemplate, type QuestionType } from "../api";
+import { api, type ApiError, type FormQuestionInput, type FormTemplate, type QuestionType } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
+import { BusyLabel, Skeleton } from "../components/loading";
+import { useApiError, useToast, useToastsEnabled } from "../components/toast";
 
 const TYPE_LABELS: Record<QuestionType, string> = { text: "Short answer", longtext: "Long answer", choice: "Multiple choice" };
 const MAX_QUESTIONS = 30;
@@ -48,6 +50,9 @@ export default function FormsPage() {
   const [error, setError] = useState<ApiError | null>(null);
   const [notice, setNotice] = useState("");
   const keyRef = useRef(0);
+  const report = useApiError();
+  const toast = useToast();
+  const toastsOn = useToastsEnabled();
 
   useEffect(() => {
     let live = true;
@@ -56,13 +61,13 @@ export default function FormsPage() {
       (e) => {
         if (!live) return;
         setTemplates([]);
-        setError(toApiError(e));
+        setError(report(e));
       },
     );
     return () => {
       live = false;
     };
-  }, []);
+  }, [report]);
 
   const nextKey = () => ++keyRef.current;
 
@@ -121,8 +126,9 @@ export default function FormsPage() {
       });
       setDraft(null);
       setNotice(`Saved "${saved.title}".`);
+      toast.success("Template saved.", `Saved "${saved.title}".`);
     } catch (err) {
-      setError(toApiError(err));
+      setError(report(err));
     } finally {
       setSaving(false);
     }
@@ -135,8 +141,9 @@ export default function FormsPage() {
       setTemplates((ts) => (ts ?? []).filter((x) => x.id !== t.id));
       if (draft?.id === t.id) setDraft(null);
       setNotice(`Deleted "${t.title}". Forms already filled in for projects keep their answers.`);
+      toast.success("Template deleted.", `Deleted "${t.title}". Forms already filled in for projects keep their answers.`);
     } catch (err) {
-      setError(toApiError(err));
+      setError(report(err));
     }
   }
 
@@ -151,9 +158,7 @@ export default function FormsPage() {
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
 
       {templates === null ? (
-        <p className="muted" role="status">
-          Loading templates…
-        </p>
+        <Skeleton label="Loading templates…" lines={3} />
       ) : (
         <>
           {templates.length === 0 ? (
@@ -184,7 +189,7 @@ export default function FormsPage() {
             </ul>
           )}
 
-          <p className="muted small" role="status">
+          <p className="muted small" role={toastsOn ? undefined : "status"}>
             {notice}
           </p>
 
@@ -285,7 +290,9 @@ export default function FormsPage() {
 
           <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={saving} aria-busy={saving}>
-              {saving ? "Saving…" : "Save template"}
+              <BusyLabel busy={saving} busyText="Saving…">
+                Save template
+              </BusyLabel>
             </button>
             <button type="button" className="btn" onClick={() => setDraft(null)} disabled={saving}>
               Cancel
