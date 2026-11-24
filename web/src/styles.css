@@ -28,8 +28,10 @@
   --shadow: 0 1px 0 rgba(27, 29, 33, 0.04), 0 1px 3px rgba(27, 29, 33, 0.06);
 }
 
+/* Dark palette: used when the OS prefers dark (unless Light is forced) or when Dark is forced via data-theme. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --bg: #121416;
     --surface: #1a1d20;
     --surface-2: #23272b;
@@ -47,10 +49,70 @@
     --focus: #8bb8ff;
     --ok: #6fd39a;
     --warn: #f0b660;
-  --info-bg: #172333;
-  --info-line: #3b5374;
+    --info-bg: #172333;
+    --info-line: #3b5374;
     --shadow: none;
   }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121416;
+  --surface: #1a1d20;
+  --surface-2: #23272b;
+  --ink: #ebe8e2;
+  --muted: #a6aab0;
+  --line: #2f3439;
+  --accent: #5cc7b2;
+  --accent-ink: #0b1f1b;
+  --accent-soft: #183530;
+  --tick-off: #30363b;
+  --badge-bg: #3a2e14;
+  --badge-ink: #f3d28c;
+  --danger: #ff9e8f;
+  --danger-bg: #3a1c18;
+  --focus: #8bb8ff;
+  --ok: #6fd39a;
+  --warn: #f0b660;
+  --info-bg: #172333;
+  --info-line: #3b5374;
+  --shadow: none;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* Theme switcher in the top bar */
+.theme-switch {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px;
+  background: var(--surface);
+  gap: 2px;
+}
+.theme-switch button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.theme-switch button:hover {
+  color: var(--ink);
+}
+.theme-switch button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+.theme-switch button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 *,

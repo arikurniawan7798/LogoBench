@@ -8,6 +8,7 @@ import FormsPage from "./pages/FormsPage";
 import ToolsPage from "./pages/ToolsPage";
 import { GlobalProgress } from "./components/loading";
 import { ToastProvider } from "./components/toast";
+import ThemeSwitch from "./components/ThemeSwitch";
 
 const NAV = [
   { page: "compare", label: "Compare", to: href.compare() },
@@ -80,6 +81,7 @@ export default function App() {
               ))}
             </ul>
           </nav>
+          <ThemeSwitch />
         </div>
       </header>
       <main id="main" tabIndex={-1}>
