@@ -93,7 +93,7 @@ describe("GeminiProvider", () => {
     expect(sleep).toHaveBeenCalledWith(2000);
   });
   it("503 high demand: retried with default 2s/4s/8s backoff, then a clear NETWORK message", async () => {
-    const sleep = vi.fn(async () => {});
+    const sleep = vi.fn(async (_ms: number) => {});
     const f = vi.fn().mockImplementation(async () => json(503, { error: { message: "This model is currently experiencing high demand." } }));
     const p = new GeminiProvider({ model: "m", apiKey: KEY, fetch: f as any, sleep });
     await expect(p.generateJson(req)).rejects.toMatchObject({ code: "NETWORK", message: expect.stringMatching(/overloaded.*try again/i) });
