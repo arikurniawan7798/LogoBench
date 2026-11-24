@@ -92,6 +92,14 @@ describe("GeminiProvider", () => {
     await p.generateJson(req);
     expect(sleep).toHaveBeenCalledWith(2000);
   });
+  it("503 high demand: retried with default 2s/4s/8s backoff, then a clear NETWORK message", async () => {
+    const sleep = vi.fn(async () => {});
+    const f = vi.fn().mockImplementation(async () => json(503, { error: { message: "This model is currently experiencing high demand." } }));
+    const p = new GeminiProvider({ model: "m", apiKey: KEY, fetch: f as any, sleep });
+    await expect(p.generateJson(req)).rejects.toMatchObject({ code: "NETWORK", message: expect.stringMatching(/overloaded.*try again/i) });
+    expect(f).toHaveBeenCalledTimes(4);
+    expect(sleep.mock.calls.map((c) => c[0])).toEqual([2000, 4000, 8000]);
+  });
   it("default model is gemini-3.6-flash", () => {
     expect(DEFAULT_GEMINI_MODEL).toBe("gemini-3.6-flash");
   });

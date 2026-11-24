@@ -27,8 +27,9 @@ export class GeminiProvider implements Provider {
     return generateValidated(
       () =>
         withBackoff(() => this.callOnce(req), {
-          retries: this.opts.retries ?? 2,
-          baseMs: this.opts.baseMs ?? 1000,
+          // Gemini 503 "high demand" spikes usually clear within seconds: wait 2s, 4s, 8s before giving up.
+          retries: this.opts.retries ?? 3,
+          baseMs: this.opts.baseMs ?? 2000,
           sleep: this.opts.sleep,
         }),
       req.schema,
@@ -100,6 +101,9 @@ export class GeminiProvider implements Provider {
     if (res.status === 403) {
       // Not a key problem: usually no access to this model/region. Not retried.
       return new AiError("BAD_MODEL", `Gemini denied access to model "${this.model}" (${msg}); check the model name in Settings`);
+    }
+    if (res.status === 503) {
+      return new AiError("NETWORK", "Gemini server error (503): the model is overloaded right now. This usually clears within a minute, so try again, or pick another model in Settings");
     }
     if (res.status >= 500) return new AiError("NETWORK", `Gemini server error (${res.status})`);
     return new AiError("BAD_OUTPUT", `Gemini request failed (${res.status}): ${msg}`);
