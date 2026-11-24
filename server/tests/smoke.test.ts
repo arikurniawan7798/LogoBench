@@ -106,5 +106,5 @@ describe("smoke: whole flow", () => {
     expect(html).toContain("Playfair Display");
     expect(provider.callCount).toBe(3); // queue fully consumed in order; identity.zip made no extra AI call
     await expect(provider.generateJson({ system: "", prompt: "", images: [], schema: z.any() })).rejects.toThrow(/no queued response/);
-  });
+  }, 30_000); // whole-flow test: ~1s alone, but can pass 5s when the full suite loads the machine
 });
