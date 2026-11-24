@@ -252,7 +252,7 @@ function BackgroundTool() {
           </BusyLabel>
         </button>
         {preview && (
-          <a className="btn" href={preview.url} download="background.png">
+          <a className="btn btn-download" href={preview.url} download="background.png">
             Download PNG
           </a>
         )}

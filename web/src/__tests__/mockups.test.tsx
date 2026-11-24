@@ -39,7 +39,7 @@ describe("Mockups tab", () => {
       expect(within(card).getByText(`${s.width}×${s.height} px`)).toHaveClass("muted");
       const dl = within(card).getByRole("link", { name: new RegExp(`download png.*${s.label.replace(/[()@]/g, ".")}`, "i") });
       expect(dl).toHaveAttribute("download", `${s.kind}.png`);
-      expect(dl).toHaveClass("btn");
+      expect(dl).toHaveClass("btn", "btn-download");
       expect(within(card).getByRole("img", { name: new RegExp(`${s.label.replace(/[()@]/g, ".")} mockup`, "i") })).toBeInTheDocument();
     }
     expect(screen.getByText(/wordmarks lose detail at 16 px/i)).toBeInTheDocument();

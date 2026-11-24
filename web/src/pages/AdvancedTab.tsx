@@ -94,7 +94,7 @@ function AdvancedResultView({ projectId, r }: { projectId: string; r: AdvancedRe
     <>
       <p className="review-summary">{r.summary}</p>
       <p>
-        <a className="btn" href={urls.reportPdf(projectId)} download>
+        <a className="btn btn-download" href={urls.reportPdf(projectId)} download>
           Download PDF report
         </a>
       </p>

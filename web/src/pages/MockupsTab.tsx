@@ -179,7 +179,7 @@ export default function MockupsTab({
                       {m.width}×{m.height} px
                     </span>
                   </div>
-                  <a href={src} download={`${m.kind}.png`} className="btn btn-small mockup-download">
+                  <a href={src} download={`${m.kind}.png`} className="btn btn-small btn-download mockup-download">
                     Download PNG<span className="sr-only">: {m.label}</span>
                   </a>
                 </div>
@@ -245,7 +245,7 @@ function MockupDialog({ spec, src, onClose }: { spec: MockupSpec; src: string; o
           </span>
         </h2>
         <div className="mockup-dialog-actions">
-          <a href={src} download={`${spec.kind}.png`} className="btn btn-small">
+          <a href={src} download={`${spec.kind}.png`} className="btn btn-small btn-download">
             Download PNG
           </a>
           <button ref={closeRef} type="button" className="btn btn-small" onClick={onClose}>

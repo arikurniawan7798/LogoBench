@@ -87,7 +87,7 @@ export default function ExportTab({ project }: { project: Project }) {
         <h3 id="vector-title">Vector file</h3>
         {isSvg ? (
           <p>
-            <a className="btn" href={logoUrl(project.id, latest?.id)} download={`${safeName(project.name)}.svg`}>
+            <a className="btn btn-download" href={logoUrl(project.id, latest?.id)} download={`${safeName(project.name)}.svg`}>
               Download cleaned SVG
             </a>
           </p>
