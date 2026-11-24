@@ -93,9 +93,13 @@ describe("buildReportPdf", () => {
     }
   });
 
-  it("a review with no fixes stays within 2 pages (the old >=2 assertion would pass here too)", async () => {
+  it("a review with no fixes, checklist or ideas stays within 2 pages and still says so", async () => {
     const zero = await buildReportPdf(project(), adv({ fixes: [], checklist: [], presentationIdeas: [] }), logo(png, "image/png"), { compress: false });
-    expect(pages(zero)).toBe(2);
+    expect(pages(zero)).toBeLessThanOrEqual(2);
+    const text = pageTexts(zero).join("");
+    expect(text).toContain("No fixes suggested.");
+    expect(text).toContain("No checklist items.");
+    expect(text).toContain("No presentation ideas.");
   });
 
   it("uses the review createdAt and is deterministic", async () => {
