@@ -36,10 +36,10 @@ describe("Mockups tab", () => {
     for (const [i, card] of cards.entries()) {
       const s = specs[i];
       expect(within(card).getByRole("heading", { name: s.label })).toBeInTheDocument();
-      expect(within(card).getByText(`${s.width}×${s.height} px`)).toHaveClass("muted");
+      expect(within(card).getByText(`${s.width}×${s.height} px`)).toHaveClass("text-fg-muted");
       const dl = within(card).getByRole("link", { name: new RegExp(`download png.*${s.label.replace(/[()@]/g, ".")}`, "i") });
       expect(dl).toHaveAttribute("download", `${s.kind}.png`);
-      expect(dl).toHaveClass("btn", "btn-download");
+      expect(dl).toHaveAttribute("data-variant", "download");
       expect(within(card).getByRole("img", { name: new RegExp(`${s.label.replace(/[()@]/g, ".")} mockup`, "i") })).toBeInTheDocument();
     }
     expect(screen.getByText(/wordmarks lose detail at 16 px/i)).toBeInTheDocument();
@@ -50,9 +50,9 @@ describe("Mockups tab", () => {
     renderTab();
     const img = await screen.findByRole("img", { name: /app icon mockup/i });
     const card = img.closest("li")!;
-    expect(card.querySelector(".mockup-preview")).toHaveAttribute("aria-busy", "true");
+    expect(card.querySelector("[data-preview]")).toHaveAttribute("aria-busy", "true");
     fireEvent.load(img);
-    expect(card.querySelector(".mockup-preview")).toHaveAttribute("aria-busy", "false");
+    expect(card.querySelector("[data-preview]")).toHaveAttribute("aria-busy", "false");
 
     const web = screen.getByRole("img", { name: /website header mockup/i });
     const firstSrc = web.getAttribute("src");

@@ -9,7 +9,23 @@ import {
   type StepEvent,
 } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
-import { BusyLabel, BusyPanel, Spinner } from "../components/loading";
+import { BusyPanel } from "../components/loading";
+import {
+  Badge,
+  Button,
+  ButtonLink,
+  Callout,
+  Card,
+  cn,
+  IconCheck,
+  IconDownload,
+  IconMinus,
+  IconSparkles,
+  IconX,
+  PageHeader,
+  Spinner,
+  type Tone,
+} from "../components/ui";
 import { useApiError, useToast } from "../components/toast";
 
 const STEP_COPY: Record<IdentityStep, { label: string; detail: string }> = {
@@ -31,7 +47,6 @@ const STATUS_TEXT: Record<StepStatus, string> = {
   failed: "Failed",
   skipped: "Skipped (kept yours)",
 };
-const STATUS_ICON: Record<StepStatus, string> = { pending: "○", running: "◐", ok: "✓", failed: "✕", skipped: "–" };
 
 const freshSteps = (): Steps =>
   Object.fromEntries(IDENTITY_STEPS.map((s) => [s, { status: "pending" }])) as Steps;
@@ -129,69 +144,107 @@ export default function IdentityTab({ projectId }: { projectId: string }) {
   else if (phase === "stopped") statusText = `Stopped: ${doneCount} of 5 steps done.`;
 
   return (
-    <div className="identity">
+    <div className="flex flex-col gap-6">
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
 
-      <div className="section-head">
-        <div>
-          <h2>Create identity</h2>
-          <p className="muted section-note">
+      <PageHeader
+        level={2}
+        title="Create identity"
+        description={
+          <p>
             One action runs the whole workflow: review, colors, type, mockups, then a one-page identity you can send to a client. AI
             steps run one at a time; if one fails, the others still finish with a sensible fallback. Colors and type you saved are kept:
             those steps are skipped, never overwritten.
           </p>
-        </div>
-        <div className="section-actions">
-          <button type="button" className="btn btn-primary" onClick={run} disabled={running} aria-busy={running}>
-            <BusyLabel busy={running} busyText="Creating…">
-              {phase === "idle" ? "Create identity" : "Create identity again"}
-            </BusyLabel>
-          </button>
-        </div>
-      </div>
+        }
+        actions={
+          <Button variant="primary" onClick={run} loading={running} loadingText="Creating…" icon={<IconSparkles className="size-4" />}>
+            {phase === "idle" ? "Create identity" : "Create identity again"}
+          </Button>
+        }
+      />
 
       <BusyPanel active={running} message="Creating the identity. Each AI step can take up to a minute." />
 
-      <ol className="steps" aria-label="Steps">
-        {IDENTITY_STEPS.map((step) => {
-          const st = steps[step];
-          const labelId = `step-${step}`;
-          return (
-            <li key={step} className={`step step-${st.status}`} aria-labelledby={labelId}>
-              <span className="step-icon" aria-hidden="true">
-                {st.status === "running" ? <Spinner /> : STATUS_ICON[st.status]}
-              </span>
-              <div className="step-body">
-                <div className="step-top">
-                  <span id={labelId} className="step-label">
-                    {STEP_COPY[step].label}
-                  </span>
-                  <span className="step-status">{STATUS_TEXT[st.status]}</span>
+      <Card padding="none">
+        <ol className="flex flex-col p-2 sm:p-3" aria-label="Steps">
+          {IDENTITY_STEPS.map((step, i) => {
+            const st = steps[step];
+            const labelId = `step-${step}`;
+            const last = i === IDENTITY_STEPS.length - 1;
+            return (
+              <li
+                key={step}
+                data-status={st.status}
+                className={cn("relative flex gap-4 rounded-lg px-3 py-3.5", st.status === "running" && "bg-accent-soft")}
+                aria-labelledby={labelId}
+              >
+                {!last && <span className="absolute bottom-[-0.875rem] left-[1.6875rem] top-[3.25rem] w-px bg-line" aria-hidden="true" />}
+                <span
+                  className={cn("relative grid size-8 shrink-0 place-items-center rounded-full text-xs font-semibold", STEP_ICON_TONE[st.status])}
+                  aria-hidden="true"
+                >
+                  {st.status === "running" ? (
+                    <Spinner />
+                  ) : st.status === "ok" ? (
+                    <IconCheck className="size-4" />
+                  ) : st.status === "failed" ? (
+                    <IconX className="size-4" />
+                  ) : st.status === "skipped" ? (
+                    <IconMinus className="size-4" />
+                  ) : (
+                    i + 1
+                  )}
+                </span>
+                <div className="min-w-0 flex-1 pt-1">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span id={labelId} className="text-sm font-semibold text-fg">
+                      {STEP_COPY[step].label}
+                    </span>
+                    <Badge tone={STATUS_TONE[st.status]}>{STATUS_TEXT[st.status]}</Badge>
+                  </div>
+                  <p className="mt-1 text-[0.8125rem] leading-5 text-fg-muted">{STEP_COPY[step].detail}</p>
+                  {st.error && <p className="mt-2 text-sm font-medium text-danger">{st.error.message}</p>}
+                  {st.note && <p className="mt-2 text-sm text-fg">{st.note}</p>}
                 </div>
-                <p className="muted small step-detail">{STEP_COPY[step].detail}</p>
-                {st.error && <p className="step-error">{st.error.message}</p>}
-                {st.note && <p className="step-note">{st.note}</p>}
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-
-      <p className="identity-status" role="status">
-        {statusText}
-      </p>
+              </li>
+            );
+          })}
+        </ol>
+        <p className="border-t border-line px-5 py-3.5 text-sm font-medium text-fg empty:border-t-0 empty:p-0" role="status">
+          {statusText}
+        </p>
+      </Card>
 
       {phase === "finished" &&
         (identityOk ? (
-          <p>
-            <a className="btn btn-primary" href={urls.identityZip(projectId)} download>
-              Download identity page (.zip)
-            </a>{" "}
-            <span className="muted small">Unzip and open index.html; it works offline.</span>
-          </p>
+          <Callout tone="success" title="Your identity page is ready">
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <ButtonLink variant="primary" href={urls.identityZip(projectId)} download icon={<IconDownload className="size-4" />}>
+                Download identity page (.zip)
+              </ButtonLink>
+              <span className="text-sm text-fg-muted">Unzip and open index.html; it works offline.</span>
+            </div>
+          </Callout>
         ) : (
-          <p className="muted">The identity page could not be built this time. Fix the problem shown above and run it again.</p>
+          <p className="text-sm text-fg-muted">The identity page could not be built this time. Fix the problem shown above and run it again.</p>
         ))}
     </div>
   );
 }
+
+const STEP_ICON_TONE: Record<StepStatus, string> = {
+  pending: "bg-surface text-fg-subtle ring-1 ring-line-strong",
+  running: "bg-surface text-accent-text ring-2 ring-accent",
+  ok: "bg-success-soft text-success ring-1 ring-success-line",
+  failed: "bg-danger-soft text-danger ring-1 ring-danger-line",
+  skipped: "bg-muted-bg text-fg-muted ring-1 ring-line",
+};
+
+const STATUS_TONE: Record<StepStatus, Tone> = {
+  pending: "neutral",
+  running: "accent",
+  ok: "success",
+  failed: "danger",
+  skipped: "neutral",
+};

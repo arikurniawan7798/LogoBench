@@ -1,5 +1,6 @@
 import { logoUrl, urls, type Project } from "../api";
 import { href } from "../router";
+import { Badge, Button, ButtonLink, Callout, Card, CardHeader, cn, IconCheck, IconDownload, IconFile, IconLock, PageHeader } from "../components/ui";
 
 const SVG_REASON = "Needs an SVG upload. This logo was uploaded as a raster image (PNG, JPG or WebP), so vector and recolored files cannot be made from it.";
 
@@ -34,92 +35,103 @@ export default function ExportTab({ project }: { project: Project }) {
   const isSvg = latest?.mime === "image/svg+xml";
 
   return (
-    <div className="export">
-      <div className="section-head">
-        <div>
-          <h2>Export</h2>
-          <p className="muted section-note">
-            Production files built from the latest logo version and your saved colors. Everything is generated on this machine.
-          </p>
-        </div>
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        level={2}
+        title="Export"
+        description={
+          <p>Production files built from the latest logo version and your saved colors. Everything is generated on this machine.</p>
+        }
+      />
 
       {!isSvg && (
-        <div className="banner banner-info" role="note">
-          <div className="banner-body">
-            <p className="banner-title-info">Raster logo: some files are not available</p>
-            <p>
-              Recolored and vector files need an SVG source. Use "Upload new version" at the top of this page to add an SVG version
-              of this logo and unlock them; LogoBench does not trace raster images.
-            </p>
-          </div>
-        </div>
+        <Callout tone="warn" role="note" title="Raster logo: some files are not available">
+          <p className="text-fg-muted">
+            Recolored and vector files need an SVG source. Use "Upload new version" at the top of this page to add an SVG version of
+            this logo and unlock them; LogoBench does not trace raster images.
+          </p>
+        </Callout>
       )}
 
-      <section className="card export-card" aria-labelledby="pack-title">
-        <h3 id="pack-title">Logo pack</h3>
-        <ul className="pack-list">
-          {PACK.map((item) => {
-            const available = !item.needsSvg || isSvg;
-            const labelId = `pack-${item.id}`;
-            return (
-              <li key={item.id} className={available ? "pack-item" : "pack-item is-off"} aria-labelledby={labelId}>
-                <span className={available ? "pill pill-ok" : "pill pill-off"}>{available ? "Included" : "Not included"}</span>
-                <span>
-                  <span id={labelId} className="pack-label">
-                    {item.label}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <Card as="section" aria-labelledby="pack-title">
+          <CardHeader
+            id="pack-title"
+            title="Logo pack"
+            icon={<IconFile className="size-4" />}
+            description="A README in the pack lists every file and anything that was left out."
+          />
+          <ul className="flex flex-col divide-y divide-line">
+            {PACK.map((item) => {
+              const available = !item.needsSvg || isSvg;
+              const labelId = `pack-${item.id}`;
+              return (
+                <li key={item.id} className="flex items-start gap-3 py-3 first:pt-0" aria-labelledby={labelId}>
+                  <span
+                    className={cn(
+                      "mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg",
+                      available ? "bg-success-soft text-success" : "bg-muted-bg text-fg-subtle",
+                    )}
+                    aria-hidden="true"
+                  >
+                    {available ? <IconCheck className="size-4" /> : <IconLock className="size-4" />}
                   </span>
-                  <span className="muted small pack-detail">{available ? item.detail : SVG_REASON}</span>
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-        <p>
-          <a className="btn btn-primary" href={urls.exportZip(project.id)} download>
-            Download logo pack (.zip)
-          </a>
-        </p>
-        <p className="muted small">A README in the pack lists every file and anything that was left out.</p>
-      </section>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                      <span id={labelId} className={cn("text-sm font-medium", available ? "text-fg" : "text-fg-muted")}>
+                        {item.label}
+                      </span>
+                      <Badge tone={available ? "success" : "neutral"}>{available ? "Included" : "Not included"}</Badge>
+                    </span>
+                    <span className="mt-0.5 block text-[0.8125rem] leading-5 text-fg-muted">{available ? item.detail : SVG_REASON}</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="mt-5 border-t border-line pt-5">
+            <ButtonLink variant="primary" href={urls.exportZip(project.id)} download icon={<IconDownload className="size-4" />}>
+              Download logo pack (.zip)
+            </ButtonLink>
+          </div>
+        </Card>
 
-      <section className="card export-card" aria-labelledby="vector-title">
-        <h3 id="vector-title">Vector file</h3>
-        {isSvg ? (
-          <p>
-            <a className="btn btn-download" href={logoUrl(project.id, latest?.id)} download={`${safeName(project.name)}.svg`}>
-              Download cleaned SVG
-            </a>
-          </p>
-        ) : (
-          <>
-            <p>
-              <button type="button" className="btn" disabled aria-describedby="svg-reason">
+        <div className="flex flex-col gap-6">
+          <Card as="section" aria-labelledby="vector-title">
+            <CardHeader id="vector-title" title="Vector file" description="The cleaned SVG on its own." />
+            {isSvg ? (
+              <ButtonLink variant="download" href={logoUrl(project.id, latest?.id)} download={`${safeName(project.name)}.svg`}>
                 Download cleaned SVG
-              </button>
-            </p>
-            <p id="svg-reason" className="muted small">
-              {SVG_REASON}
-            </p>
-          </>
-        )}
-      </section>
+              </ButtonLink>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <Button disabled aria-describedby="svg-reason" icon={<IconDownload className="size-4" />} className="self-start">
+                  Download cleaned SVG
+                </Button>
+                <p id="svg-reason" className="text-[0.8125rem] leading-5 text-fg-muted">
+                  {SVG_REASON}
+                </p>
+              </div>
+            )}
+          </Card>
 
-      <section className="card export-card" aria-labelledby="more-title">
-        <h3 id="more-title">More</h3>
-        <ul className="link-list">
-          <li>
-            The one-page brand identity (logo, colors, type, mockups) is built on the{" "}
-            <a href={href.project(project.id, "identity")}>Identity</a> tab.
-          </li>
-          <li>
-            The PDF report comes with an <a href={href.project(project.id, "advanced")}>Advanced review</a>.
-          </li>
-          <li>
-            Favicons or a background for any image, without a project: <a href={href.tools()}>Tools</a>.
-          </li>
-        </ul>
-      </section>
+          <Card as="section" aria-labelledby="more-title">
+            <CardHeader id="more-title" title="More" />
+            <ul className="flex flex-col gap-2.5 text-sm leading-6 text-fg-muted">
+              <li>
+                The one-page brand identity (logo, colors, type, mockups) is built on the{" "}
+                <a href={href.project(project.id, "identity")}>Identity</a> tab.
+              </li>
+              <li>
+                The PDF report comes with an <a href={href.project(project.id, "advanced")}>Advanced review</a>.
+              </li>
+              <li>
+                Favicons or a background for any image, without a project: <a href={href.tools()}>Tools</a>.
+              </li>
+            </ul>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

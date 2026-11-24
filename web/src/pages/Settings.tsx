@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api, type ApiError, type PublicSettings, type SettingsInput } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
-import { BusyLabel, Skeleton } from "../components/loading";
+import { Badge, Button, Card, CardHeader, cn, IconAlert, IconCheck, Input, PageHeader, Skeleton } from "../components/ui";
 import { useApiError, useToast, useToastsEnabled } from "../components/toast";
 
 export default function Settings() {
@@ -52,111 +52,145 @@ export default function Settings() {
     }
   }
 
+  const providers = [
+    {
+      id: "gemini" as const,
+      name: "Gemini",
+      note: "hosted by Google, free tier available; the logo image is sent to Google",
+    },
+    {
+      id: "ollama" as const,
+      name: "Ollama",
+      note: "runs a vision model locally; nothing leaves your machine as long as the Ollama URL points to this machine",
+    },
+  ];
+
   return (
-    <div className="settings">
-      <h1>Settings</h1>
-      <p className="muted">Choose which model reads your logos. Changes apply to the next request, no restart needed.</p>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Settings"
+        description={<p>Choose which model reads your logos. Changes apply to the next request, no restart needed.</p>}
+      />
 
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
 
-      {!form && !error && (
-        <Skeleton label="Loading settings…" lines={4} />
-      )}
+      {!form && !error && <Skeleton label="Loading settings…" lines={4} />}
 
       {form && saved && (
-        <form onSubmit={onSubmit} className="settings-form">
-          <fieldset className="card">
-            <legend>AI provider</legend>
-            <label className="radio">
-              <input
-                type="radio"
-                name="provider"
-                value="gemini"
-                checked={form.provider === "gemini"}
-                onChange={() => set("provider", "gemini")}
-              />
-              <span>
-                <strong>Gemini</strong> <span className="muted">· hosted by Google, free tier available; the logo image is sent to Google</span>
-              </span>
-            </label>
-            <label className="radio">
-              <input
-                type="radio"
-                name="provider"
-                value="ollama"
-                checked={form.provider === "ollama"}
-                onChange={() => set("provider", "ollama")}
-              />
-              <span>
-                <strong>Ollama</strong>{" "}
-                <span className="muted">
-                  · runs a vision model locally; nothing leaves your machine as long as the Ollama URL points to this machine
-                </span>
-              </span>
-            </label>
-          </fieldset>
+        <form onSubmit={onSubmit} className="flex flex-col gap-6">
+          <Card as="fieldset" className="min-w-0">
+            <legend className="sr-only">AI provider</legend>
+            <CardHeader level={2} title="AI provider" description="Which service reviews your logos and suggests colors and type." />
+            <div className="grid gap-3 md:grid-cols-2">
+              {providers.map((p) => {
+                const checked = form.provider === p.id;
+                return (
+                  <label
+                    key={p.id}
+                    className={cn(
+                      "relative flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-[border-color,background-color] duration-150",
+                      "has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-ring",
+                      checked ? "border-accent bg-accent-soft/60 ring-1 ring-accent" : "border-line hover:border-line-strong hover:bg-subtle",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="provider"
+                      value={p.id}
+                      checked={checked}
+                      onChange={() => set("provider", p.id)}
+                      className="mt-1 size-4 shrink-0 cursor-pointer accent-[var(--lb-accent)] focus-visible:outline-none"
+                    />
+                    <span className="min-w-0 text-sm leading-6">
+                      <strong className="font-semibold text-fg">{p.name}</strong>{" "}
+                      <span className="text-fg-muted">· {p.note}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </Card>
 
-          <fieldset className="card">
-            <legend>Gemini</legend>
-            <div className="field">
-              <label htmlFor="gemini-model">Model name</label>
-              <input
-                id="gemini-model"
-                type="text"
-                required
-                value={form.geminiModel}
-                onChange={(e) => set("geminiModel", e.target.value)}
-                spellCheck={false}
-                aria-describedby="gemini-model-hint"
+          <div className="grid items-start gap-6 lg:grid-cols-2">
+            <Card as="fieldset" className="min-w-0">
+              <legend className="sr-only">Gemini</legend>
+              <CardHeader
+                level={2}
+                title="Gemini"
+                actions={
+                  <Badge
+                    tone={saved.hasGeminiKey ? "success" : "warn"}
+                    icon={<span className={cn("size-1.5 rounded-full", saved.hasGeminiKey ? "bg-success" : "bg-warn")} aria-hidden="true" />}
+                  >
+                    {saved.hasGeminiKey ? "Key set" : "No key"}
+                  </Badge>
+                }
               />
-              <p id="gemini-model-hint" className="muted small">
-                If reviews fail with &quot;model not found&quot;, check ai.google.dev for a current free-tier vision model.
-              </p>
-            </div>
-            <div className="key-status" aria-live="polite">
-              <span className={`dot ${saved.hasGeminiKey ? "ok" : "warn"}`} aria-hidden="true" />
-              <span>{saved.hasGeminiKey ? "API key configured on the server" : "No API key configured"}</span>
-            </div>
-            <p className="muted small">
-              The key never passes through this page. Put it in the <code>.env</code> file at the project root as{" "}
-              <code>GEMINI_API_KEY=…</code> (or set the <code>GEMINI_API_KEY</code> environment variable) and restart the server.
-            </p>
-          </fieldset>
+              <div className="flex flex-col gap-4">
+                <Input
+                  id="gemini-model"
+                  label="Model name"
+                  type="text"
+                  required
+                  className="font-mono"
+                  value={form.geminiModel}
+                  onChange={(e) => set("geminiModel", e.target.value)}
+                  spellCheck={false}
+                  hint={<>If reviews fail with &quot;model not found&quot;, check ai.google.dev for a current free-tier vision model.</>}
+                />
+                <div
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm font-medium",
+                    saved.hasGeminiKey ? "border-success-line bg-success-soft text-success" : "border-warn-line bg-warn-soft text-warn",
+                  )}
+                  aria-live="polite"
+                >
+                  {saved.hasGeminiKey ? <IconCheck className="size-4" /> : <IconAlert className="size-4" />}
+                  <span>{saved.hasGeminiKey ? "API key configured on the server" : "No API key configured"}</span>
+                </div>
+                <div className="rounded-lg bg-subtle p-3.5 text-[0.8125rem] leading-6 text-fg-muted">
+                  <p>
+                    The key never passes through this page. Put it in the <code>.env</code> file at the project root as{" "}
+                    <code>GEMINI_API_KEY=…</code> (or set the <code>GEMINI_API_KEY</code> environment variable) and restart the server.
+                  </p>
+                </div>
+              </div>
+            </Card>
 
-          <fieldset className="card">
-            <legend>Ollama</legend>
-            <div className="field">
-              <label htmlFor="ollama-model">Model name</label>
-              <input
-                id="ollama-model"
-                type="text"
-                required
-                value={form.ollamaModel}
-                onChange={(e) => set("ollamaModel", e.target.value)}
-                spellCheck={false}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="ollama-url">Server URL</label>
-              <input
-                id="ollama-url"
-                type="url"
-                required
-                value={form.ollamaUrl}
-                onChange={(e) => set("ollamaUrl", e.target.value)}
-                spellCheck={false}
-              />
-            </div>
-          </fieldset>
+            <Card as="fieldset" className="min-w-0">
+              <legend className="sr-only">Ollama</legend>
+              <CardHeader level={2} title="Ollama" description="A local model server on this machine." />
+              <div className="flex flex-col gap-4">
+                <Input
+                  id="ollama-model"
+                  label="Model name"
+                  type="text"
+                  required
+                  className="font-mono"
+                  value={form.ollamaModel}
+                  onChange={(e) => set("ollamaModel", e.target.value)}
+                  spellCheck={false}
+                />
+                <Input
+                  id="ollama-url"
+                  label="Server URL"
+                  type="url"
+                  required
+                  className="font-mono"
+                  value={form.ollamaUrl}
+                  onChange={(e) => set("ollamaUrl", e.target.value)}
+                  spellCheck={false}
+                />
+              </div>
+            </Card>
+          </div>
 
-          <div className="form-actions">
-            <button type="submit" className="btn btn-primary" disabled={saving} aria-busy={saving}>
-              <BusyLabel busy={saving} busyText="Saving…">
-                Save settings
-              </BusyLabel>
-            </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="submit" variant="primary" loading={saving} loadingText="Saving…">
+              Save settings
+            </Button>
             {/* With toasts on, the success toast is the announcer; this stays as a visible note. */}
-            <span role={toastsOn ? undefined : "status"} className="muted">
+            <span role={toastsOn ? undefined : "status"} className="text-sm text-fg-muted">
               {notice}
             </span>
           </div>

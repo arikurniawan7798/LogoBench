@@ -10,7 +10,23 @@ import {
   type Project,
 } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
-import { BusyLabel, BusyPanel, Skeleton, Spinner } from "../components/loading";
+import { BusyPanel } from "../components/loading";
+import {
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  cn,
+  EmptyState,
+  IconCompare,
+  IconTrophy,
+  PageHeader,
+  ScoreBar,
+  Select,
+  Skeleton,
+  Spinner,
+  Textarea,
+} from "../components/ui";
 import { useApiError } from "../components/toast";
 import { DIMENSION_COPY } from "../components/ScoreList";
 import { href } from "../router";
@@ -139,47 +155,68 @@ export default function ComparePage() {
   }
 
   return (
-    <div className="compare">
-      <h1>Compare</h1>
-      <p className="muted section-note">
-        Put two or three of your logos side by side against one brief. The model scores each on the same five dimensions and
-        recommends one, as a prompt for your own judgment.
-      </p>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Compare"
+        description={
+          <p>
+            Put two or three of your logos side by side against one brief. The model scores each on the same five dimensions and
+            recommends one, as a prompt for your own judgment.
+          </p>
+        }
+      />
 
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
 
-      {projects === null && (
-        <Skeleton label="Loading your logos…" lines={3} variant="cards" />
-      )}
+      {projects === null && <Skeleton label="Loading your logos…" lines={3} variant="cards" />}
 
       {projects !== null && projects.length < MIN && !error && (
-        <div className="empty">
-          <p className="empty-title">Not enough logos yet</p>
-          <p className="muted">
-            Compare needs at least two logos. <a href={href.home()}>Upload another one</a>.
-          </p>
-        </div>
+        <EmptyState icon={<IconCompare />} title="Not enough logos yet">
+          Compare needs at least two logos. <a href={href.home()}>Upload another one</a>.
+        </EmptyState>
       )}
 
       {projects !== null && projects.length >= MIN && (
-        <form className="card compare-form" onSubmit={onSubmit} noValidate>
-          <fieldset className="plain-fieldset" aria-describedby="pick-hint">
-            <legend className="field-legend">Logos to compare</legend>
-            <p id="pick-hint" className="muted small">
+        <Card as="form" onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
+          <fieldset aria-describedby="pick-hint" className="flex min-w-0 flex-col gap-3">
+            <legend className="mb-1 text-base font-semibold tracking-tight text-fg">Logos to compare</legend>
+            <p id="pick-hint" className="text-sm text-fg-muted">
               Choose 2 or 3, in the order you want them shown. {selected.length} selected.
             </p>
-            <ul className="pick-list">
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]">
               {projects.map((p) => {
                 const latest = p.versions[p.versions.length - 1];
                 const checked = selected.includes(p.id);
+                const order = selected.indexOf(p.id) + 1;
                 return (
                   <li key={p.id}>
-                    <label className={checked ? "pick is-checked" : "pick"}>
-                      <input type="checkbox" checked={checked} onChange={() => toggle(p.id)} />
-                      <span className="thumb">
-                        <img src={logoUrl(p.id, latest?.id)} alt="" loading="lazy" />
+                    <label
+                      className={cn(
+                        "relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border bg-surface transition-[border-color,box-shadow] duration-150",
+                        "has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-ring",
+                        checked ? "border-accent ring-1 ring-accent" : "border-line hover:border-line-strong",
+                      )}
+                    >
+                      <span className="relative block aspect-[4/3] border-b border-line bg-logo-canvas">
+                        <img src={logoUrl(p.id, latest?.id)} alt="" loading="lazy" className="absolute inset-0 size-full object-contain p-5" />
                       </span>
-                      <span className="pick-name">{p.name}</span>
+                      <span className="flex items-center gap-2.5 px-3 py-2.5">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggle(p.id)}
+                          className="size-4 shrink-0 cursor-pointer accent-[var(--lb-accent)] focus-visible:outline-none"
+                        />
+                        <span className="min-w-0 truncate text-sm font-medium text-fg">{p.name}</span>
+                      </span>
+                      {checked && (
+                        <span
+                          className="absolute right-2 top-2 grid size-6 place-items-center rounded-full bg-accent text-xs font-semibold text-accent-ink shadow-sm"
+                          aria-hidden="true"
+                        >
+                          {order}
+                        </span>
+                      )}
                     </label>
                   </li>
                 );
@@ -187,29 +224,26 @@ export default function ComparePage() {
             </ul>
           </fieldset>
           {invalid && (
-            <p className="field-error" role="alert">
+            <p className="-mt-3 text-sm font-medium text-danger" role="alert">
               Choose 2 or 3 logos to compare (you have {selected.length} selected).
             </p>
           )}
-          <div className="field">
-            <label htmlFor="compare-brief">Brief (optional)</label>
-            <textarea
+          <div className="flex flex-col gap-3">
+            <Textarea
               id="compare-brief"
+              label="Brief (optional)"
               rows={3}
               maxLength={MAX_BRIEF_CHARS}
               value={brief}
               onChange={(e) => setBrief(e.target.value)}
               placeholder="Who is it for, and what should it say?"
+              hint="Only this brief is used here. To start from a project's brief (its free text and filled client forms), load it below."
             />
-            <span className="muted small">
-              Only this brief is used here. To start from a project&apos;s brief (its free text and filled client forms), load it below.
-            </span>
-            <div className="brief-from">
-              <label htmlFor="compare-brief-from" className="small">
-                Use brief from project…
-              </label>
-              <select
+            <div className="flex flex-wrap items-end gap-3">
+              <Select
                 id="compare-brief-from"
+                label="Use brief from project…"
+                wrapperClassName="w-full sm:w-72"
                 value={briefFrom}
                 disabled={loadingBrief}
                 aria-busy={loadingBrief}
@@ -221,50 +255,51 @@ export default function ComparePage() {
                     {p.name}
                   </option>
                 ))}
-              </select>
-              {loadingBrief && <Spinner label="Loading the brief" />}
+              </Select>
+              {loadingBrief && <Spinner label="Loading the brief" className="mb-2.5 text-accent-text" />}
             </div>
             {briefNote && (
-              <p className="muted small" role="status">
+              <p className="text-sm text-fg-muted" role="status">
                 {briefNote}
               </p>
             )}
           </div>
-          <div className="form-actions">
-            <button type="submit" className="btn btn-primary" disabled={running} aria-busy={running}>
-              <BusyLabel busy={running} busyText="Comparing…">
+          <div className="flex flex-col gap-4 border-t border-line pt-5">
+            <div>
+              <Button type="submit" variant="primary" loading={running} loadingText="Comparing…" icon={<IconCompare className="size-4" />}>
                 Compare logos
-              </BusyLabel>
-            </button>
+              </Button>
+            </div>
+            <BusyPanel active={running} message="Asking the model to compare your logos…" />
           </div>
-          <BusyPanel active={running} message="Asking the model to compare your logos…" />
-        </form>
+        </Card>
       )}
 
       {result && <CompareResult compare={result} nameOf={nameOf} projects={byId} />}
 
       {history.length > 0 && (
-        <section className="compare-history" aria-labelledby="past-title">
-          <h2 id="past-title">Past comparisons</h2>
-          <ul className="link-list">
+        <Card as="section" aria-labelledby="past-title">
+          <CardHeader level={2} id="past-title" title="Past comparisons" />
+          <ul className="flex flex-col divide-y divide-line">
             {history.map((h) => (
-              <li key={h.id} className="history-row">
-                <span>
-                  {h.projectIds.map(nameOf).join(" vs ")} · winner {nameOf(h.winnerProjectId)}{" "}
-                  <span className="muted small">{formatDate(h.createdAt)}</span>
+              <li key={h.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                <span className="min-w-0 text-sm">
+                  <span className="font-medium text-fg">{h.projectIds.map(nameOf).join(" vs ")}</span>
+                  <span className="text-fg-muted"> · winner {nameOf(h.winnerProjectId)}</span>{" "}
+                  <span className="block text-xs text-fg-subtle sm:inline">{formatDate(h.createdAt)}</span>
                 </span>
-                <span className="row-actions">
-                  <button type="button" className="btn btn-small" onClick={() => open(h.id)}>
+                <span className="flex gap-2">
+                  <Button size="sm" onClick={() => open(h.id)}>
                     Open
-                  </button>
-                  <button type="button" className="btn btn-small" onClick={() => remove(h.id)} aria-label={`Delete comparison from ${formatDate(h.createdAt)}`}>
+                  </Button>
+                  <Button size="sm" variant="danger" onClick={() => remove(h.id)} aria-label={`Delete comparison from ${formatDate(h.createdAt)}`}>
                     Delete
-                  </button>
+                  </Button>
                 </span>
               </li>
             ))}
           </ul>
-        </section>
+        </Card>
       )}
     </div>
   );
@@ -274,47 +309,63 @@ function CompareResult({ compare, nameOf, projects }: { compare: Compare; nameOf
   const ids = compare.items.map((i) => i.projectId);
   const winner = compare.result.recommendation.winnerProjectId;
   return (
-    <section className="compare-result" aria-labelledby="result-title">
-      <h2 id="result-title">Recommended: {nameOf(winner)}</h2>
-      <p className="review-summary">{compare.result.recommendation.reason}</p>
-      {compare.brief && (
-        <p className="muted small">
-          Brief: <span>{compare.brief}</span>
-        </p>
-      )}
+    <Card as="section" padding="none" className="overflow-hidden" aria-labelledby="result-title">
+      <div className="flex flex-col gap-3 border-b border-line bg-accent-soft/60 p-5 sm:flex-row sm:items-start sm:p-6">
+        <span className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-accent-line bg-logo-canvas">
+          <img src={logoUrl(winner, lastVersionId(projects.get(winner)))} alt="" className="absolute inset-0 size-full object-contain p-1.5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-accent-text">
+            <IconTrophy className="size-4" /> Recommendation
+          </p>
+          <h2 id="result-title" className="mt-0.5 text-xl font-semibold tracking-tight text-fg">
+            Recommended: {nameOf(winner)}
+          </h2>
+          <p className="mt-2 text-[0.9375rem] leading-7 text-fg">{compare.result.recommendation.reason}</p>
+          {compare.brief && (
+            <p className="mt-2 text-sm text-fg-muted">
+              Brief: <span>{compare.brief}</span>
+            </p>
+          )}
+        </div>
+      </div>
 
-      <div className="table-wrap">
-        <table className="compare-table">
+      <div className="relative overflow-x-auto focus-visible:outline-offset-[-2px]" tabIndex={0} role="region" aria-label="Score table (scrolls sideways)">
+        <table className="w-full min-w-[36rem] border-collapse text-sm">
           <caption className="sr-only">Scores out of 10 per logo</caption>
           <thead>
-            <tr>
-              <th scope="col">Dimension</th>
+            <tr className="border-b border-line bg-subtle">
+              <th scope="col" className="w-40 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-fg-subtle sm:px-6">
+                Dimension
+              </th>
               {ids.map((id) => (
-                <th key={id} scope="col">
-                  <span className="compare-col">
-                    <span className="thumb thumb-small">
-                      <img src={logoUrl(id, lastVersionId(projects.get(id)))} alt="" />
+                <th key={id} scope="col" className={cn("px-4 py-3 text-left align-bottom", id === winner && "bg-accent-soft/60")}>
+                  <span className="flex items-center gap-2.5">
+                    <span className="relative size-9 shrink-0 overflow-hidden rounded-lg border border-line bg-logo-canvas">
+                      <img src={logoUrl(id, lastVersionId(projects.get(id)))} alt="" className="absolute inset-0 size-full object-contain p-1" />
                     </span>
-                    {nameOf(id)}
-                    {id === winner && <span className="badge">pick</span>}
+                    <span className="min-w-0 font-semibold text-fg">{nameOf(id)}</span>
+                    {id === winner && <Badge tone="accent">pick</Badge>}
                   </span>
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-line">
             {DIMENSIONS.map((d) => (
               <tr key={d}>
-                <th scope="row">{DIMENSION_COPY[d].label}</th>
+                <th scope="row" className="px-5 py-3.5 text-left align-top font-medium text-fg sm:px-6">
+                  {DIMENSION_COPY[d].label}
+                </th>
                 {ids.map((id) => {
                   const s = compare.result.scores[id]?.[d];
                   return (
-                    <td key={id}>
+                    <td key={id} className={cn("px-4 py-3.5 align-top", id === winner && "bg-accent-soft/30")}>
                       {s ? (
-                        <>
-                          <span className="score-cell">{s.score}/10</span>
-                          <span className="muted small cell-reason">{s.reason}</span>
-                        </>
+                        <div className="flex flex-col gap-1.5">
+                          <ScoreBar score={s.score} className="max-w-48" />
+                          <span className="text-[0.8125rem] leading-5 text-fg-muted">{s.reason}</span>
+                        </div>
                       ) : (
                         "–"
                       )}
@@ -323,11 +374,13 @@ function CompareResult({ compare, nameOf, projects }: { compare: Compare; nameOf
                 })}
               </tr>
             ))}
-            <tr className="total-row">
-              <th scope="row">Total (out of 50)</th>
+            <tr className="bg-subtle">
+              <th scope="row" className="px-5 py-3.5 text-left font-semibold text-fg sm:px-6">
+                Total (out of 50)
+              </th>
               {ids.map((id) => (
-                <td key={id}>
-                  <span className="score-cell">{compare.result.totals[id] ?? "–"}</span>
+                <td key={id} className={cn("px-4 py-3.5 text-lg font-semibold tabular-nums text-fg", id === winner && "text-accent-text")}>
+                  {compare.result.totals[id] ?? "–"}
                 </td>
               ))}
             </tr>
@@ -336,16 +389,19 @@ function CompareResult({ compare, nameOf, projects }: { compare: Compare; nameOf
       </div>
 
       {compare.result.notes.length > 0 && (
-        <>
-          <h3>Notes</h3>
-          <ul>
+        <div className="border-t border-line p-5 sm:p-6">
+          <h3 className="text-sm font-semibold text-fg">Notes</h3>
+          <ul className="mt-2 flex flex-col gap-1.5">
             {compare.result.notes.map((n, i) => (
-              <li key={i}>{n}</li>
+              <li key={i} className="flex gap-2.5 text-sm leading-6 text-fg-muted">
+                <span className="mt-2.5 size-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
+                {n}
+              </li>
             ))}
           </ul>
-        </>
+        </div>
       )}
-    </section>
+    </Card>
   );
 }
 

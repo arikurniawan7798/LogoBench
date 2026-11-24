@@ -234,7 +234,7 @@ describe("IdentityTab", () => {
 
     const steps = screen.getByRole("list", { name: /steps/i });
     const colors = within(steps).getByRole("listitem", { name: /colors/i });
-    expect(colors).toHaveClass("step-skipped");
+    expect(colors).toHaveAttribute("data-status", "skipped");
     expect(colors).toHaveTextContent(/skipped/i);
     expect(colors).toHaveTextContent(keptPalette);
     expect(colors).not.toHaveTextContent(/failed/i);

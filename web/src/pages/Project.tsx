@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { api, logoUrl, type ApiError, type Project as ProjectT } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
 import ProjectTitle from "../components/ProjectTitle";
-import { BusyLabel, Skeleton } from "../components/loading";
+import { buttonClasses, Card, cn, IconUpload, Skeleton, Spinner, TabPanel, Tabs } from "../components/ui";
+import { usePageTitle } from "../components/AppShell";
 import { useApiError, useToast } from "../components/toast";
 import { ACCEPT, checkFile } from "../files";
 import { href, navigate } from "../router";
@@ -33,8 +34,8 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
   const toast = useToast();
   const uploadingRef = useRef(false); // double-submit guard (state updates are async)
   const idRef = useRef(id);
-  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const active = TABS.some((t) => t.id === tab) ? tab : "review";
+  usePageTitle(project?.name);
 
   useEffect(() => {
     let live = true;
@@ -100,26 +101,13 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
     setRenaming(true);
   }
 
-  function select(tabId: string, focus = false) {
+  function select(tabId: string) {
     navigate(href.project(id, tabId));
-    if (focus) tabRefs.current[tabId]?.focus();
-  }
-
-  function onTabKey(e: KeyboardEvent<HTMLDivElement>) {
-    const i = TABS.findIndex((t) => t.id === active);
-    let next = -1;
-    if (e.key === "ArrowRight") next = (i + 1) % TABS.length;
-    else if (e.key === "ArrowLeft") next = (i - 1 + TABS.length) % TABS.length;
-    else if (e.key === "Home") next = 0;
-    else if (e.key === "End") next = TABS.length - 1;
-    if (next < 0) return;
-    e.preventDefault();
-    select(TABS[next].id, true);
   }
 
   if (!project) {
     return (
-      <div className="project">
+      <div className="flex flex-col gap-6">
         <ErrorBanner error={error} onDismiss={() => setError(null)} />
         {error ? (
           <p>
@@ -135,16 +123,13 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
   const latest = project.versions[project.versions.length - 1];
 
   return (
-    <div className="project">
+    <div className="flex flex-col gap-6">
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
-      <header className="project-head">
-        <div className="project-logo">
-          <img src={logoUrl(project.id, latest?.id)} alt={`${project.name} logo`} />
+      <Card as="header" padding="none" className="flex flex-col gap-5 p-4 sm:flex-row sm:items-center sm:p-5">
+        <div className="relative size-20 shrink-0 overflow-hidden rounded-xl border border-line bg-logo-canvas sm:size-24">
+          <img src={logoUrl(project.id, latest?.id)} alt={`${project.name} logo`} className="absolute inset-0 size-full object-contain p-2.5" />
         </div>
-        <div>
-          <p className="crumb">
-            <a href={href.home()}>Your logos</a> <span aria-hidden="true">/</span>
-          </p>
+        <div className="min-w-0 flex-1">
           <ProjectTitle
             name={project.name}
             editing={renaming}
@@ -152,53 +137,55 @@ export default function Project({ id, tab }: { id: string; tab: string }) {
             onCancel={() => setRenaming(false)}
             onSave={onRename}
           />
-          <p className="muted small">
-            {latest ? `${latest.originalName} · ` : ""}
-            {project.versions.length} {project.versions.length === 1 ? "version" : "versions"}
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-fg-muted">
+            {latest && <span className="max-w-full truncate">{latest.originalName}</span>}
+            {latest && <span aria-hidden="true">·</span>}
+            <span>
+              {project.versions.length} {project.versions.length === 1 ? "version" : "versions"}
+            </span>
           </p>
         </div>
-        <div className="project-upload">
+        <div className="flex shrink-0 flex-col gap-1.5 sm:max-w-[15rem] sm:items-end sm:text-right">
           <input
             id="new-version-file"
-            className="sr-only"
+            className="sr-only peer"
             type="file"
             accept={ACCEPT}
             disabled={uploading}
             onChange={onNewVersion}
           />
-          <label htmlFor="new-version-file" className={`btn${uploading ? " is-disabled" : ""}`} aria-busy={uploading}>
-            <BusyLabel busy={uploading} busyText="Uploading…">
-              Upload new version
-            </BusyLabel>
-          </label>
-          <p className="muted small">SVG, PNG, JPG or WebP, up to 10 MB. Tabs refresh for the new version.</p>
-        </div>
-      </header>
-
-      <div className="tabs" role="tablist" aria-label="Project sections" onKeyDown={onTabKey}>
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            ref={(el) => {
-              tabRefs.current[t.id] = el;
-            }}
-            type="button"
-            role="tab"
-            id={`tab-${t.id}`}
-            aria-selected={t.id === active}
-            aria-controls={`panel-${t.id}`}
-            tabIndex={t.id === active ? 0 : -1}
-            className="tab"
-            onClick={() => select(t.id)}
+          <label
+            htmlFor="new-version-file"
+            className={cn(
+              buttonClasses({ variant: "secondary" }),
+              "cursor-pointer peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring",
+              uploading && "pointer-events-none opacity-55",
+            )}
+            aria-busy={uploading}
           >
-            {t.label}
-          </button>
-        ))}
+            {uploading ? (
+              <>
+                <Spinner />
+                Uploading…
+              </>
+            ) : (
+              <>
+                <IconUpload className="size-4" />
+                Upload new version
+              </>
+            )}
+          </label>
+          <p className="text-xs text-fg-muted">SVG, PNG, JPG or WebP, up to 10 MB. Tabs refresh for the new version.</p>
+        </div>
+      </Card>
+
+      <div className="sticky top-14 z-20 -mt-2 border-b border-line bg-canvas/85 backdrop-blur-md">
+        <Tabs items={TABS} active={active} onSelect={select} label="Project sections" className="-ml-3" />
       </div>
 
-      <div className="tabpanel" role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`} tabIndex={0}>
+      <TabPanel id={`panel-${active}`} labelledBy={`tab-${active}`}>
         <TabContent tab={active} project={project} onRename={startRename} />
-      </div>
+      </TabPanel>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { api, type ApiError, type Personality, type ReviewResult } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
-import { BusyLabel, BusyPanel, Skeleton } from "../components/loading";
+import { BusyPanel } from "../components/loading";
+import { Badge, Button, Card, CardHeader, Chip, EmptyState, IconRefresh, IconSparkles, PageHeader, Skeleton } from "../components/ui";
 import { useApiError } from "../components/toast";
 import ScoreList from "../components/ScoreList";
 
@@ -56,69 +57,71 @@ export default function ReviewTab({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="review">
+    <div className="flex flex-col gap-6">
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
       <BusyPanel active={running} message="Asking the model to review your logo…" />
 
-      {state.status === "loading" && (
-        <Skeleton label="Loading review…" lines={4} />
-      )}
+      {state.status === "loading" && <Skeleton label="Loading review…" lines={4} />}
 
       {state.status === "empty" && (
-        <div className="review-empty">
-          <h2>No review yet</h2>
-          <p className="muted">
-            Ask the model for a first read: five scores out of 10, each with a reason, and a sketch of the brand personality the mark
-            projects.
-          </p>
-          <button type="button" className="btn btn-primary" onClick={() => run(false)} disabled={running} aria-busy={running}>
-            <BusyLabel busy={running} busyText="Reviewing…">
+        <EmptyState
+          titleAs="h2"
+          icon={<IconSparkles />}
+          title="No review yet"
+          action={
+            <Button variant="primary" onClick={() => run(false)} loading={running} loadingText="Reviewing…" icon={<IconSparkles className="size-4" />}>
               Run review
-            </BusyLabel>
-          </button>
-        </div>
+            </Button>
+          }
+        >
+          Ask the model for a first read: five scores out of 10, each with a reason, and a sketch of the brand personality the mark
+          projects.
+        </EmptyState>
       )}
 
       {state.status === "ready" && (
         <>
-          <div className="review-head">
-            <div>
-              <h2>Review</h2>
-              <p className="muted review-note">
-                One model&rsquo;s read of your logo. Treat the numbers as prompts for your own judgment, not as a grade.
-              </p>
-            </div>
-            <div className="review-actions">
-              {state.cached && (
-                <span className="badge" title="Served from the local cache: same image, prompt and model as last time.">
-                  cached
-                </span>
-              )}
-              {state.createdAt && <span className="muted small">Reviewed {formatDate(state.createdAt)}</span>}
-              <button type="button" className="btn" onClick={() => run(true)} disabled={running} aria-busy={running}>
-                <BusyLabel busy={running} busyText="Reviewing…">
+          <PageHeader
+            level={2}
+            title="Review"
+            description={
+              <p>One model&rsquo;s read of your logo. Treat the numbers as prompts for your own judgment, not as a grade.</p>
+            }
+            actions={
+              <>
+                {state.cached && (
+                  <Badge tone="info" title="Served from the local cache: same image, prompt and model as last time.">
+                    cached
+                  </Badge>
+                )}
+                {state.createdAt && <span className="text-xs text-fg-muted">Reviewed {formatDate(state.createdAt)}</span>}
+                <Button onClick={() => run(true)} loading={running} loadingText="Reviewing…" icon={<IconRefresh className="size-4" />}>
                   Re-run
-                </BusyLabel>
-              </button>
-            </div>
-          </div>
+                </Button>
+              </>
+            }
+          />
 
-          <p className="review-summary">{state.result.summary}</p>
+          <Card className="relative overflow-hidden">
+            <span className="absolute inset-y-0 left-0 w-1 bg-accent" aria-hidden="true" />
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-accent-text">Summary</p>
+            <p className="text-base leading-7 text-fg">{state.result.summary}</p>
+          </Card>
 
           <ScoreList scores={state.result.scores} />
 
-          <section className="personality" aria-labelledby="personality-title">
-            <h3 id="personality-title">Brand personality</h3>
-            <p className="muted small">How the mark is likely to come across, in a word or two per trait.</p>
-            <dl>
+          <Card as="section" aria-labelledby="personality-title">
+            <CardHeader
+              id="personality-title"
+              title="Brand personality"
+              description="How the mark is likely to come across, in a word or two per trait."
+            />
+            <dl className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
               {(Object.keys(PERSONALITY_LABELS) as (keyof Personality)[]).map((k) => (
-                <div key={k} className="trait">
-                  <dt>{PERSONALITY_LABELS[k]}</dt>
-                  <dd>{state.result.personality[k]}</dd>
-                </div>
+                <Chip key={k} label={PERSONALITY_LABELS[k]} value={state.result.personality[k]} />
               ))}
             </dl>
-          </section>
+          </Card>
         </>
       )}
     </div>

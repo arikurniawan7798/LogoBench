@@ -1,7 +1,7 @@
-import { useEffect, useId, useRef, useState, type MouseEvent, type SyntheticEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, urls, type ApiError, type MockupSpec } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
-import { BusyLabel, Skeleton } from "../components/loading";
+import { Button, ButtonLink, Card, cn, Dialog, IconAlert, IconExpand, IconRefresh, PageHeader, Skeleton } from "../components/ui";
 import { useApiError } from "../components/toast";
 import { href } from "../router";
 
@@ -85,29 +85,36 @@ export default function MockupsTab({
   const set = (kind: string, s: Status) => setStatus((st) => (st[kind] === s ? st : { ...st, [kind]: s }));
 
   return (
-    <div className="mockups">
+    <div className="flex flex-col gap-6">
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
-      <div className="section-head">
-        <div>
-          <h2>Mockups</h2>
-          <p className="muted section-note">
-            The logo placed in common settings, drawn with your saved <a href={href.project(projectId, "colors")}>colors</a> and{" "}
-            <a href={href.project(projectId, "type")}>type</a>. Text is set in a system font of the same style (serif, sans or
-            script) as your chosen fonts.
-          </p>
-          <p className="mockup-name-note">
-            Mockups use the name “{projectName}”{" "}
-            <span aria-hidden="true">—</span>{" "}
-            <button type="button" className="link-button" onClick={onRename}>
-              Rename<span className="sr-only"> logo</span>
-            </button>
-          </p>
-        </div>
-        <div className="section-actions">
-          <button
-            type="button"
-            className="btn"
-            aria-busy={busy}
+      <PageHeader
+        level={2}
+        title="Mockups"
+        description={
+          <>
+            <p>
+              The logo placed in common settings, drawn with your saved <a href={href.project(projectId, "colors")}>colors</a> and{" "}
+              <a href={href.project(projectId, "type")}>type</a>. Text is set in a system font of the same style (serif, sans or
+              script) as your chosen fonts.
+            </p>
+            <p className="mt-2 text-sm text-fg">
+              Mockups use the name “{projectName}”{" "}
+              <span aria-hidden="true">—</span>{" "}
+              <button
+                type="button"
+                className="rounded font-medium text-accent-text underline decoration-accent-text/40 underline-offset-2 hover:decoration-accent-text"
+                onClick={onRename}
+              >
+                Rename<span className="sr-only"> logo</span>
+              </button>
+            </p>
+          </>
+        }
+        actions={
+          <Button
+            loading={busy}
+            loadingText="Rendering…"
+            icon={<IconRefresh className="size-4" />}
             onClick={() => {
               // reset in the same update as the new round, so the button is busy from the first render
               setStatus({});
@@ -115,50 +122,53 @@ export default function MockupsTab({
               setRerendering(true);
               setRound((r) => r + 1);
             }}
-            disabled={!specs?.length || busy}
+            disabled={!specs?.length}
           >
-            <BusyLabel busy={busy} busyText="Rendering…">
-              Re-render
-            </BusyLabel>
-          </button>
-        </div>
-      </div>
+            Re-render
+          </Button>
+        }
+      />
 
       {specs === null && <Skeleton label="Loading mockups…" lines={4} variant="cards" />}
 
       {!!specs?.length && (
-        <ul className="mockup-grid" aria-label="Mockups">
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4" aria-label="Mockups">
           {specs.map((m) => {
             const src = srcFor(m.kind);
             const st = statusOf(m.kind);
             return (
-              <li key={m.kind} className="mockup-card">
-                <div className={`mockup-preview is-${st}`} aria-busy={st === "loading"}>
+              <Card as="li" padding="none" key={m.kind} className="flex flex-col overflow-hidden">
+                <div
+                  data-preview=""
+                  className="relative grid h-56 place-items-center border-b border-line bg-subtle p-3"
+                  aria-busy={st === "loading"}
+                >
                   {st === "error" ? (
-                    <div className="mockup-failed">
-                      <p className="small">This mockup could not be rendered.</p>
-                      <button
-                        type="button"
-                        className="btn btn-small"
+                    <div className="flex flex-col items-center gap-3 text-center">
+                      <IconAlert className="size-6 text-warn" />
+                      <p className="text-sm text-fg-muted">This mockup could not be rendered.</p>
+                      <Button
+                        size="sm"
+                        icon={<IconRefresh className="size-4" />}
                         onClick={() => {
                           set(m.kind, "loading");
                           setRetries((r) => ({ ...r, [m.kind]: (r[m.kind] ?? 0) + 1 }));
                         }}
                       >
                         Retry<span className="sr-only">: {m.label}</span>
-                      </button>
+                      </Button>
                     </div>
                   ) : (
                     <button
                       type="button"
-                      className="mockup-open"
+                      className="group absolute inset-3 cursor-zoom-in rounded-lg focus-visible:outline-offset-2"
                       aria-label={`Enlarge ${m.label}`}
                       onClick={(e) => {
                         opener.current = e.currentTarget;
                         setZoom(m);
                       }}
                     >
-                      {st === "loading" && <span className="mockup-skeleton" aria-hidden="true" />}
+                      {st === "loading" && <span className="absolute inset-0 animate-pulse rounded-lg bg-muted-bg" aria-hidden="true" />}
                       <img
                         key={src}
                         src={src}
@@ -166,25 +176,37 @@ export default function MockupsTab({
                         width={m.width}
                         height={m.height}
                         decoding="async"
+                        className={cn(
+                          "absolute inset-0 size-full object-contain drop-shadow-sm transition-[opacity,transform] duration-200 group-hover:scale-[1.02]",
+                          st === "loading" ? "opacity-0" : "opacity-100",
+                        )}
                         onLoad={() => set(m.kind, "loaded")}
                         onError={() => set(m.kind, "error")}
                       />
+                      <span
+                        className="absolute right-2 top-2 grid size-8 place-items-center rounded-lg bg-surface/90 text-fg-muted opacity-0 shadow-sm ring-1 ring-line transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                        aria-hidden="true"
+                      >
+                        <IconExpand className="size-4" />
+                      </span>
                     </button>
                   )}
                 </div>
-                <div className="mockup-caption">
-                  <div className="mockup-meta">
-                    <h3 className="mockup-title">{m.label}</h3>
-                    <span className="muted small">
-                      {m.width}×{m.height} px
-                    </span>
+                <div className="flex flex-1 flex-col gap-2 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-semibold text-fg">{m.label}</h3>
+                      <span className="text-xs tabular-nums text-fg-muted">
+                        {m.width}×{m.height} px
+                      </span>
+                    </div>
+                    <ButtonLink variant="download" size="sm" href={src} download={`${m.kind}.png`}>
+                      Download PNG<span className="sr-only">: {m.label}</span>
+                    </ButtonLink>
                   </div>
-                  <a href={src} download={`${m.kind}.png`} className="btn btn-small btn-download mockup-download">
-                    Download PNG<span className="sr-only">: {m.label}</span>
-                  </a>
+                  {NOTES[m.kind] && <p className="text-xs leading-5 text-fg-muted">{NOTES[m.kind]}</p>}
                 </div>
-                {NOTES[m.kind] && <p className="muted small mockup-note">{NOTES[m.kind]}</p>}
-              </li>
+              </Card>
             );
           })}
         </ul>
@@ -197,65 +219,24 @@ export default function MockupsTab({
 
 /** Larger view in a modal <dialog>: Esc, the Close button or a backdrop click closes it. */
 function MockupDialog({ spec, src, onClose }: { spec: MockupSpec; src: string; onClose: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
-  const titleId = useId();
-
-  useEffect(() => {
-    const d = ref.current;
-    if (!d) return;
-    if (typeof d.showModal === "function") {
-      if (!d.open) d.showModal();
-    } else {
-      d.setAttribute("open", ""); // environments without the modal API (jsdom)
-    }
-    closeRef.current?.focus();
-    return () => {
-      if (typeof d.close === "function" && d.open) d.close();
-    };
-  }, []);
-
-  const onBackdrop = (e: MouseEvent<HTMLDialogElement>) => {
-    if (e.target === e.currentTarget) onClose();
-  };
-  const onCancel = (e: SyntheticEvent) => {
-    e.preventDefault(); // native Esc: let React state close it
-    onClose();
-  };
-
   return (
-    <dialog
-      ref={ref}
-      className="mockup-dialog"
-      aria-labelledby={titleId}
-      onCancel={onCancel}
-      onClick={onBackdrop}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          e.preventDefault();
-          onClose();
-        }
-      }}
+    <Dialog
+      title={spec.label}
+      subtitle={`${spec.width}×${spec.height} px`}
+      onClose={onClose}
+      actions={
+        <ButtonLink variant="download" size="sm" href={src} download={`${spec.kind}.png`}>
+          Download PNG
+        </ButtonLink>
+      }
     >
-      <div className="mockup-dialog-head">
-        <h2 id={titleId}>
-          {spec.label}{" "}
-          <span className="muted small">
-            {spec.width}×{spec.height} px
-          </span>
-        </h2>
-        <div className="mockup-dialog-actions">
-          <a href={src} download={`${spec.kind}.png`} className="btn btn-small btn-download">
-            Download PNG
-          </a>
-          <button ref={closeRef} type="button" className="btn btn-small" onClick={onClose}>
-            Close
-          </button>
-        </div>
-      </div>
-      <div className="mockup-dialog-body">
-        <img src={src} alt={`${spec.label} mockup, enlarged`} width={spec.width} height={spec.height} />
-      </div>
-    </dialog>
+      <img
+        src={src}
+        alt={`${spec.label} mockup, enlarged`}
+        width={spec.width}
+        height={spec.height}
+        className="mx-auto h-auto max-h-[calc(100dvh-10rem)] w-auto max-w-full rounded-lg object-contain shadow-sm ring-1 ring-black/5"
+      />
+    </Dialog>
   );
 }

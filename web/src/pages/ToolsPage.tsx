@@ -1,7 +1,20 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api, saveBlob, type ApiError } from "../api";
 import ErrorBanner from "../components/ErrorBanner";
-import { BusyLabel } from "../components/loading";
+import {
+  Button,
+  ButtonLink,
+  Card,
+  CardHeader,
+  cn,
+  hintClasses,
+  IconDownload,
+  IconImage,
+  IconSparkles,
+  Input,
+  labelClasses,
+  PageHeader,
+} from "../components/ui";
 import { useApiError, useToast, useToastsEnabled } from "../components/toast";
 import { ACCEPT, checkFile } from "../files";
 import { HEX_RE } from "../color";
@@ -19,31 +32,42 @@ const MAX_PIXELS = 33_000_000;
 
 export default function ToolsPage() {
   return (
-    <div className="tools">
-      <h1>Tools</h1>
-      <p className="muted section-note">Quick utilities that work on any image, no project needed. Files are processed on this machine.</p>
-      <FaviconTool />
-      <BackgroundTool />
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Tools"
+        description={<p>Quick utilities that work on any image, no project needed. Files are processed on this machine.</p>}
+      />
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
+        <FaviconTool />
+        <BackgroundTool />
+      </div>
     </div>
   );
 }
 
 function FileField({ id, label, file, onPick }: { id: string; label: string; file: File | null; onPick: (f: File | null, problem: ApiError | null) => void }) {
   return (
-    <div className="field">
-      <label htmlFor={id}>{label}</label>
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <label htmlFor={id} className={labelClasses}>
+        {label}
+      </label>
       <input
         id={id}
         type="file"
         accept={ACCEPT}
         aria-describedby={`${id}-hint`}
+        className={cn(
+          "block w-full min-w-0 cursor-pointer rounded-lg border border-dashed border-line-strong bg-subtle p-1.5 text-sm text-fg-muted",
+          "file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-surface file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-fg file:shadow-xs file:ring-1 file:ring-line-strong",
+          "hover:border-fg-subtle/60 hover:file:bg-muted-bg",
+        )}
         onChange={(e) => {
           const f = e.target.files?.[0] ?? null;
           const problem = f ? checkFile(f) : null;
           onPick(problem ? null : f, problem);
         }}
       />
-      <span id={`${id}-hint`} className="muted small">
+      <span id={`${id}-hint`} className={hintClasses}>
         {file ? `Selected: ${file.name}` : "SVG, PNG, JPG or WebP, up to 10 MB."}
       </span>
     </div>
@@ -90,11 +114,15 @@ function FaviconTool() {
   }
 
   return (
-    <form className="card tool" onSubmit={onSubmit} aria-labelledby="favicon-title" noValidate>
-      <h2 id="favicon-title">Favicon generator</h2>
-      <p className="muted small">
-        Makes favicon.ico (16, 32 and 48 px), PNG favicons, an apple-touch-icon and Android icons from a square-ish mark.
-      </p>
+    <Card as="form" onSubmit={onSubmit} aria-labelledby="favicon-title" noValidate className="flex flex-col gap-5">
+      <CardHeader
+        level={2}
+        flush
+        id="favicon-title"
+        title="Favicon generator"
+        icon={<IconImage className="size-4" />}
+        description="Makes favicon.ico (16, 32 and 48 px), PNG favicons, an apple-touch-icon and Android icons from a square-ish mark."
+      />
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
       <FileField
         id="favicon-file"
@@ -105,17 +133,15 @@ function FaviconTool() {
           setError(problem ? report(problem) : null);
         }}
       />
-      <div className="form-actions">
-        <button type="submit" className="btn btn-primary" disabled={busy} aria-busy={busy}>
-          <BusyLabel busy={busy} busyText="Generating…">
-            Download favicons (.zip)
-          </BusyLabel>
-        </button>
-        <span className="muted small" role={toastsOn ? undefined : "status"}>
+      <div className="flex flex-wrap items-center gap-3 border-t border-line pt-5">
+        <Button type="submit" variant="primary" loading={busy} loadingText="Generating…" icon={<IconDownload className="size-4" />}>
+          Download favicons (.zip)
+        </Button>
+        <span className="text-sm text-fg-muted" role={toastsOn ? undefined : "status"}>
           {notice}
         </span>
       </div>
-    </form>
+    </Card>
   );
 }
 
@@ -181,19 +207,24 @@ function BackgroundTool() {
   }
 
   return (
-    <form className="card tool" onSubmit={onSubmit} aria-labelledby="bg-title" noValidate>
-      <h2 id="bg-title">Background generator</h2>
-      <p className="muted small">A solid background in any size, with your logo centered on it if you add one.</p>
+    <Card as="form" onSubmit={onSubmit} aria-labelledby="bg-title" noValidate className="flex flex-col gap-5">
+      <CardHeader
+        level={2}
+        flush
+        id="bg-title"
+        title="Background generator"
+        icon={<IconSparkles className="size-4" />}
+        description="A solid background in any size, with your logo centered on it if you add one."
+      />
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
 
-      <fieldset className="plain-fieldset">
-        <legend className="field-legend">Size</legend>
-        <div className="preset-row">
+      <fieldset className="flex min-w-0 flex-col gap-3">
+        <legend className={cn(labelClasses, "mb-1.5")}>Size</legend>
+        <div className="flex flex-wrap gap-2">
           {PRESETS.map((p) => (
-            <button
+            <Button
               key={p.label}
-              type="button"
-              className="btn btn-small"
+              size="sm"
               aria-pressed={w === p.w && h === p.h}
               onClick={() => {
                 setWidth(String(p.w));
@@ -201,38 +232,39 @@ function BackgroundTool() {
               }}
             >
               {p.label}
-            </button>
+            </Button>
           ))}
         </div>
-        <div className="inline-fields">
-          <div className="field">
-            <label htmlFor="bg-width">Width (px)</label>
-            <input id="bg-width" type="number" inputMode="numeric" min={MIN_DIM} max={MAX_DIM} step={1} value={width} onChange={(e) => setWidth(e.target.value)} />
-          </div>
-          <div className="field">
-            <label htmlFor="bg-height">Height (px)</label>
-            <input id="bg-height" type="number" inputMode="numeric" min={MIN_DIM} max={MAX_DIM} step={1} value={height} onChange={(e) => setHeight(e.target.value)} />
-          </div>
+        <div className="grid grid-cols-2 gap-3 sm:max-w-sm">
+          <Input id="bg-width" label="Width (px)" type="number" inputMode="numeric" min={MIN_DIM} max={MAX_DIM} step={1} value={width} onChange={(e) => setWidth(e.target.value)} />
+          <Input id="bg-height" label="Height (px)" type="number" inputMode="numeric" min={MIN_DIM} max={MAX_DIM} step={1} value={height} onChange={(e) => setHeight(e.target.value)} />
         </div>
       </fieldset>
 
-      <div className="inline-fields">
-        <div className="field">
-          <label htmlFor="bg-color-picker">Background color</label>
-          <input id="bg-color-picker" type="color" value={colorOk ? color : "#000000"} onChange={(e) => setColor(e.target.value.toUpperCase())} />
-        </div>
-        <div className="field">
-          <label htmlFor="bg-color">Hex</label>
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-end gap-3 sm:max-w-sm">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="bg-color-picker" className={labelClasses}>
+            Background color
+          </label>
           <input
-            id="bg-color"
-            type="text"
-            maxLength={7}
-            spellCheck={false}
-            value={color}
-            aria-invalid={!colorOk}
-            onChange={(e) => setColor(e.target.value)}
+            id="bg-color-picker"
+            type="color"
+            value={colorOk ? color : "#000000"}
+            onChange={(e) => setColor(e.target.value.toUpperCase())}
+            className="h-10 w-full min-w-24 cursor-pointer rounded-lg border border-line-strong bg-surface p-1 [&::-webkit-color-swatch]:rounded-md [&::-webkit-color-swatch]:border-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-moz-color-swatch]:rounded-md [&::-moz-color-swatch]:border-0"
           />
         </div>
+        <Input
+          id="bg-color"
+          label="Hex"
+          type="text"
+          maxLength={7}
+          spellCheck={false}
+          className="font-mono"
+          value={color}
+          aria-invalid={!colorOk}
+          onChange={(e) => setColor(e.target.value)}
+        />
       </div>
 
       <FileField
@@ -245,27 +277,31 @@ function BackgroundTool() {
         }}
       />
 
-      <div className="form-actions">
-        <button type="submit" className="btn btn-primary" disabled={busy} aria-busy={busy}>
-          <BusyLabel busy={busy} busyText="Generating…">
-            Generate background
-          </BusyLabel>
-        </button>
+      <div className="flex flex-wrap items-center gap-2 border-t border-line pt-5">
+        <Button type="submit" variant="primary" loading={busy} loadingText="Generating…">
+          Generate background
+        </Button>
         {preview && (
-          <a className="btn btn-download" href={preview.url} download="background.png">
+          <ButtonLink variant="download" href={preview.url} download="background.png">
             Download PNG
-          </a>
+          </ButtonLink>
         )}
       </div>
 
       {preview && (
-        <figure className="bg-preview">
-          <img src={preview.url} alt={`Generated background, ${preview.w} by ${preview.h} pixels`} />
-          <figcaption className="muted small">
+        <figure className="flex flex-col gap-2">
+          <div className="grid place-items-center rounded-xl border border-line bg-subtle p-4">
+            <img
+              src={preview.url}
+              alt={`Generated background, ${preview.w} by ${preview.h} pixels`}
+              className="max-h-80 max-w-full rounded-md object-contain shadow-sm ring-1 ring-black/5"
+            />
+          </div>
+          <figcaption className="text-xs text-fg-muted">
             {preview.w}×{preview.h} px preview
           </figcaption>
         </figure>
       )}
-    </form>
+    </Card>
   );
 }
