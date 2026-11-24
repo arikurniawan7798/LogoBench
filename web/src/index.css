@@ -1,0 +1,225 @@
+@import "tailwindcss";
+
+/*
+ * Dark mode follows the data-theme attribute set by theme.ts (and the inline script in index.html):
+ * data-theme="dark" forces dark, data-theme="light" forces light, no attribute (Auto) follows the OS.
+ */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
+
+/* Semantic colour tokens. Utilities read the variables, so most components need no dark: variants at all. */
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+
+  --color-canvas: var(--lb-canvas);
+  --color-surface: var(--lb-surface);
+  --color-subtle: var(--lb-subtle);
+  --color-muted-bg: var(--lb-muted-bg);
+  --color-logo-canvas: var(--lb-logo-canvas);
+  --color-line: var(--lb-line);
+  --color-line-strong: var(--lb-line-strong);
+  --color-fg: var(--lb-fg);
+  --color-fg-muted: var(--lb-fg-muted);
+  --color-fg-subtle: var(--lb-fg-subtle);
+
+  --color-accent: var(--lb-accent);
+  --color-accent-hover: var(--lb-accent-hover);
+  --color-accent-ink: var(--lb-accent-ink);
+  --color-accent-text: var(--lb-accent-text);
+  --color-accent-soft: var(--lb-accent-soft);
+  --color-accent-line: var(--lb-accent-line);
+  --color-ring: var(--lb-ring);
+
+  --color-success: var(--lb-success);
+  --color-success-soft: var(--lb-success-soft);
+  --color-success-line: var(--lb-success-line);
+  --color-warn: var(--lb-warn);
+  --color-warn-soft: var(--lb-warn-soft);
+  --color-warn-line: var(--lb-warn-line);
+  --color-danger: var(--lb-danger);
+  --color-danger-solid: var(--lb-danger-solid);
+  --color-danger-soft: var(--lb-danger-soft);
+  --color-danger-line: var(--lb-danger-line);
+  --color-info: var(--lb-info);
+  --color-info-soft: var(--lb-info-soft);
+  --color-info-line: var(--lb-info-line);
+
+  --shadow-card: var(--lb-shadow-card);
+  --shadow-pop: var(--lb-shadow-pop);
+}
+
+@theme {
+  --animate-progress: lb-progress 1.3s ease-in-out infinite;
+  --animate-toast-in: lb-toast-in 180ms ease-out;
+  --animate-fade-in: lb-fade-in 160ms ease-out;
+  --animate-drawer-in: lb-drawer-in 200ms ease-out;
+
+  @keyframes lb-progress {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(250%);
+    }
+  }
+  @keyframes lb-toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.98);
+    }
+  }
+  @keyframes lb-fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes lb-drawer-in {
+    from {
+      transform: translateX(-100%);
+    }
+  }
+}
+
+/* Chevron for native selects (appearance: none). Mid-grey reads on both themes. */
+@utility select-chevron {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%238a8a96' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  background-size: 1.1rem;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --lb-canvas: #f6f6f8;
+    --lb-surface: #ffffff;
+    --lb-subtle: #f4f4f6;
+    --lb-muted-bg: #ececf0;
+    /* Logos are previewed on a light tile in both themes so dark marks stay visible. */
+    --lb-logo-canvas: #f4f4f6;
+    --lb-line: #e4e4e9;
+    --lb-line-strong: #cfcfd6;
+    --lb-fg: #17171c;
+    --lb-fg-muted: #52525c;
+    --lb-fg-subtle: #6b6b76;
+
+    --lb-accent: #4f46e5;
+    --lb-accent-hover: #4338ca;
+    --lb-accent-ink: #ffffff;
+    --lb-accent-text: #4338ca;
+    --lb-accent-soft: #eef0ff;
+    --lb-accent-line: #c7cbfb;
+    --lb-ring: #6366f1;
+
+    --lb-success: #047857;
+    --lb-success-soft: #ecfdf5;
+    --lb-success-line: #a7f3d0;
+    --lb-warn: #a14a06;
+    --lb-warn-soft: #fffaeb;
+    --lb-warn-line: #fcd9a0;
+    --lb-danger: #b91c1c;
+    --lb-danger-solid: #dc2626;
+    --lb-danger-soft: #fef2f2;
+    --lb-danger-line: #fecaca;
+    --lb-info: #0369a1;
+    --lb-info-soft: #f0f8ff;
+    --lb-info-line: #bae0fd;
+
+    --lb-shadow-card: 0 1px 2px rgb(16 16 24 / 0.04), 0 1px 3px rgb(16 16 24 / 0.05);
+    --lb-shadow-pop: 0 12px 32px -8px rgb(16 16 24 / 0.18), 0 2px 6px rgb(16 16 24 / 0.06);
+  }
+
+  :root {
+    @variant dark {
+      color-scheme: dark;
+      --lb-canvas: #0b0b0e;
+      --lb-surface: #141418;
+      --lb-subtle: #1b1b21;
+      --lb-muted-bg: #24242b;
+      --lb-logo-canvas: #e6e6eb;
+      --lb-line: #26262e;
+      --lb-line-strong: #3a3a44;
+      --lb-fg: #f2f2f5;
+      --lb-fg-muted: #a8a8b3;
+      --lb-fg-subtle: #8d8d99;
+
+      --lb-accent: #5b54ea;
+      --lb-accent-hover: #6a64f0;
+      --lb-accent-ink: #ffffff;
+      --lb-accent-text: #a9b1ff;
+      --lb-accent-soft: rgb(99 102 241 / 0.16);
+      --lb-accent-line: rgb(129 140 248 / 0.4);
+      --lb-ring: #818cf8;
+
+      --lb-success: #6ee7b7;
+      --lb-success-soft: rgb(16 185 129 / 0.12);
+      --lb-success-line: rgb(52 211 153 / 0.3);
+      --lb-warn: #fcd34d;
+      --lb-warn-soft: rgb(245 158 11 / 0.12);
+      --lb-warn-line: rgb(251 191 36 / 0.3);
+      --lb-danger: #fca5a5;
+      --lb-danger-solid: #dc2626;
+      --lb-danger-soft: rgb(239 68 68 / 0.12);
+      --lb-danger-line: rgb(248 113 113 / 0.32);
+      --lb-info: #7dd3fc;
+      --lb-info-soft: rgb(14 165 233 / 0.12);
+      --lb-info-line: rgb(56 189 248 / 0.3);
+
+      --lb-shadow-card: 0 0 0 0 transparent;
+      --lb-shadow-pop: 0 16px 40px -8px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.06);
+    }
+  }
+
+  html {
+    background-color: var(--lb-canvas);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-[0.9375rem] leading-6 text-fg antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  /* Plain inline links (in copy, notes and lists) get the accent; styled links (buttons, cards, nav) set their own. */
+  a:not([class]) {
+    @apply font-medium text-accent-text underline decoration-accent-text/40 underline-offset-2 transition-colors hover:decoration-accent-text;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--lb-ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--lb-accent) 28%, transparent);
+  }
+
+  code {
+    @apply rounded-md bg-muted-bg px-1.5 py-0.5 font-mono text-[0.85em];
+  }
+
+  dialog::backdrop {
+    background: rgb(10 10 14 / 0.6);
+    backdrop-filter: blur(2px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

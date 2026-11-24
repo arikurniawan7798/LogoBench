@@ -48,9 +48,9 @@ export function ErrorDetails({ error, title, onNavigate }: { error: ApiError; ti
   const retry = retryNote(error);
   return (
     <>
-      <p className="banner-title">{title ?? titleFor(error.code)}</p>
-      <p>{error.message}</p>
-      {retry && <p className="banner-retry">{retry}</p>}
+      <p className="font-semibold text-fg">{title ?? titleFor(error.code)}</p>
+      <p className="break-words text-fg-muted">{error.message}</p>
+      {retry && <p className="font-medium text-fg">{retry}</p>}
       {needsSettings(error) && (
         <p>
           <a href={href.settings()} onClick={onNavigate}>

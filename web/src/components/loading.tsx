@@ -1,15 +1,9 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { inFlightCount, subscribeInFlight } from "../api";
+import { Spinner } from "./ui/Spinner";
+import { Skeleton } from "./ui/Skeleton";
 
-/** CSS-only spinner. The ring is decorative; pass `label` for screen-reader text (visible with `showLabel`). */
-export function Spinner({ label, showLabel = false, size = "sm" }: { label?: string; showLabel?: boolean; size?: "sm" | "md" }) {
-  return (
-    <span className="spinner-wrap">
-      <span className={`spinner spinner-${size}`} aria-hidden="true" />
-      {label && <span className={showLabel ? "spinner-label" : "sr-only"}>{label}</span>}
-    </span>
-  );
-}
+export { Spinner, Skeleton };
 
 /** Button content: an inline spinner plus the busy text while `busy`, otherwise the idle label. */
 export function BusyLabel({ busy, busyText, children }: { busy: boolean; busyText: string; children: ReactNode }) {
@@ -49,27 +43,21 @@ export function BusyPanel({ active, message, slowAfterSec = SLOW_AFTER_SEC }: { 
 
   const slow = active && elapsed >= slowAfterSec;
   return (
-    <div className={active ? "busy-panel" : "busy-panel-idle"}>
-      {active && <Spinner size="md" />}
-      <div className="busy-text">
+    <div
+      className={
+        active
+          ? "flex animate-fade-in items-start gap-3 rounded-xl border border-accent-line bg-accent-soft px-4 py-3.5 text-accent-text"
+          : "sr-only"
+      }
+    >
+      {active && <Spinner size="md" className="mt-0.5" />}
+      <div className="min-w-0 flex-1 space-y-0.5">
         <div aria-live="polite">
-          {active && <p className="busy-message">{message}</p>}
-          {slow && <p className="busy-slow">{SLOW_NOTE}</p>}
+          {active && <p className="text-sm font-medium text-fg">{message}</p>}
+          {slow && <p className="text-sm text-fg-muted">{SLOW_NOTE}</p>}
         </div>
-        {active && <p className="busy-elapsed muted small">{formatElapsed(elapsed)}</p>}
+        {active && <p className="text-xs tabular-nums text-fg-muted">{formatElapsed(elapsed)}</p>}
       </div>
-    </div>
-  );
-}
-
-/** Skeleton placeholder for data that is loading. Announced once as a status with `label`. */
-export function Skeleton({ label, lines = 3, variant = "lines" }: { label: string; lines?: number; variant?: "lines" | "cards" }) {
-  return (
-    <div className={`skeleton skeleton-${variant}`} role="status">
-      <span className="sr-only">{label}</span>
-      {Array.from({ length: lines }, (_, i) => (
-        <span key={i} className={variant === "cards" ? "skeleton-card" : "skeleton-line"} aria-hidden="true" />
-      ))}
     </div>
   );
 }
@@ -93,8 +81,13 @@ export function GlobalProgress({ delay = 250 }: { delay?: number }) {
 
   if (!visible) return null;
   return (
-    <div className="global-progress" role="progressbar" aria-label="Loading" aria-valuetext="Working…">
-      <span className="global-progress-bar" />
+    <div
+      className="fixed inset-x-0 top-0 z-[60] h-0.5 overflow-hidden bg-accent/15"
+      role="progressbar"
+      aria-label="Loading"
+      aria-valuetext="Working…"
+    >
+      <span className="block h-full w-2/5 animate-progress rounded-full bg-accent" />
     </div>
   );
 }

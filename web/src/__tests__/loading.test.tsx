@@ -13,7 +13,7 @@ afterEach(() => {
 describe("Spinner", () => {
   it("is decorative with an optional screen-reader label", () => {
     const { container } = render(<Spinner label="Saving" />);
-    expect(container.querySelector(".spinner")).toHaveAttribute("aria-hidden", "true");
+    expect(container.querySelector("[data-spinner]")).toHaveAttribute("aria-hidden", "true");
     expect(screen.getByText("Saving")).toHaveClass("sr-only");
   });
 });
