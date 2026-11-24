@@ -2,6 +2,8 @@ import sharp from "sharp";
 import { HEX_RE, hexToRgb } from "../colors/convert.js";
 import { defaultPalette, type BrandPalette } from "../colors/roles.js";
 import { rasterizeToPng } from "../image/raster.js";
+import { PROJECT_NAME_MAX } from "../projects.js";
+import { CLASH_MAX, colorClashShare, prepareLogo } from "./logo.js";
 import { loadFonts, type TypeSystem } from "../type/pairings.js";
 import { appiconSvg } from "./templates/appicon.svg.js";
 import { businesscardSvg } from "./templates/businesscard.svg.js";
@@ -31,7 +33,7 @@ export type MockupInput = {
   brandName: string;
 };
 
-export const BRAND_NAME_MAX = 60;
+export const BRAND_NAME_MAX = PROJECT_NAME_MAX;
 const LOGO_MAX_PX = 512;
 
 /** Strip control/format-override/invalid-XML characters, collapse whitespace, cap length by code points. */
@@ -81,7 +83,9 @@ export async function prepareScene(input: MockupInput): Promise<Scene> {
   const light = lightCand && lum(lightCand) > 0.6 ? lightCand : "#F8FAFC";
 
   const png = await rasterizeToPng(input.logo.bytes, input.logo.mime, { maxSize: LOGO_MAX_PX });
-  const meta = await sharp(png).metadata();
+  // Opaque rasters on a plain background (a JPG on white) are keyed out and trimmed, so the mark sits on the mockup's
+  // own surfaces; photo-like rasters get a badge on the app icon. SVG is used as rasterized.
+  const logo = await prepareLogo(png, input.logo.mime === "image/svg+xml");
   return {
     name: cleanName(input.brandName),
     main,
@@ -91,7 +95,9 @@ export async function prepareScene(input: MockupInput): Promise<Scene> {
     light,
     headFamily: genericFamily(input.type?.heading),
     bodyFamily: genericFamily(input.type?.body),
-    logo: { uri: `data:image/png;base64,${png.toString("base64")}`, w: meta.width ?? 1, h: meta.height ?? 1 },
+    logo: { uri: `data:image/png;base64,${logo.png.toString("base64")}`, w: logo.w, h: logo.h },
+    logoMode: logo.mode,
+    iconBadge: logo.mode === "badge" || (logo.mode === "knockout" && (await colorClashShare(logo.png, hexToRgb(main))) > CLASH_MAX),
   };
 }
 
