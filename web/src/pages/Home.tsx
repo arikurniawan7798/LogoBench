@@ -88,7 +88,7 @@ export default function Home() {
                 ? "border-accent bg-accent-soft"
                 : file
                   ? "border-accent-line bg-accent-soft/50"
-                  : "border-line-strong bg-subtle hover:border-fg-subtle/60 hover:bg-muted-bg/60",
+                  : "border-line-strong bg-subtle hover:border-accent hover:bg-accent-soft/60",
             )}
             onDragOver={(e) => {
               e.preventDefault();

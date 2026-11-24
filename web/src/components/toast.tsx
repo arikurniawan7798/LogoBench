@@ -159,7 +159,7 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: (id: number) => 
       </div>
       <button
         type="button"
-        className="grid size-7 shrink-0 place-items-center rounded-lg text-fg-subtle transition-colors hover:bg-muted-bg hover:text-fg"
+        className="grid size-7 shrink-0 place-items-center rounded-lg text-fg-subtle transition-colors hover:bg-accent-soft hover:text-accent-text"
         onClick={() => onClose(toast.id)}
         aria-label="Dismiss notification"
       >

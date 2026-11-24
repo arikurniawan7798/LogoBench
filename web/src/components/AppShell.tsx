@@ -196,7 +196,7 @@ export function AppShell({ route, children }: { route: Route; children: ReactNod
             <button
               type="button"
               onClick={() => close(true)}
-              className="grid size-9 place-items-center rounded-lg text-fg-muted hover:bg-muted-bg hover:text-fg md:hidden"
+              className="grid size-9 place-items-center rounded-lg text-fg-muted hover:bg-accent-soft hover:text-accent-text md:hidden"
               aria-label="Close menu"
             >
               <IconClose />
@@ -224,7 +224,7 @@ export function AppShell({ route, children }: { route: Route; children: ReactNod
                     }}
                     className={cn(
                       "group flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium no-underline transition-colors md:max-lg:justify-center md:max-lg:px-0",
-                      current ? "bg-accent-soft text-accent-text" : "text-fg-muted hover:bg-muted-bg hover:text-fg",
+                      current ? "bg-accent-soft text-accent-text" : "text-fg-muted hover:bg-accent-soft hover:text-accent-text",
                     )}
                   >
                     <Icon className={cn("size-5", current ? "text-accent-text" : "text-fg-subtle group-hover:text-fg")} />
@@ -257,7 +257,7 @@ export function AppShell({ route, children }: { route: Route; children: ReactNod
             <button
               ref={menuRef}
               type="button"
-              className="-ml-1.5 grid size-9 place-items-center rounded-lg text-fg-muted hover:bg-muted-bg hover:text-fg md:hidden"
+              className="-ml-1.5 grid size-9 place-items-center rounded-lg text-fg-muted hover:bg-accent-soft hover:text-accent-text md:hidden"
               aria-label="Open menu"
               aria-expanded={open}
               aria-controls="app-sidebar"

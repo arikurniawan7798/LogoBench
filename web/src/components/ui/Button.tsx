@@ -15,9 +15,9 @@ const BASE =
 const VARIANTS: Record<ButtonVariant, string> = {
   primary: "bg-accent text-accent-ink shadow-sm hover:bg-accent-hover disabled:hover:bg-accent",
   secondary:
-    "border border-line-strong bg-surface text-fg shadow-xs hover:bg-subtle hover:border-fg-subtle/50 " +
+    "border border-line-strong bg-surface text-fg shadow-xs hover:border-accent-line hover:bg-accent-soft hover:text-accent-text " +
     "aria-pressed:border-accent-line aria-pressed:bg-accent-soft aria-pressed:text-accent-text",
-  ghost: "text-fg-muted hover:bg-muted-bg hover:text-fg",
+  ghost: "text-fg-muted hover:bg-accent-soft hover:text-accent-text",
   danger: "border border-danger-line bg-surface text-danger hover:bg-danger-soft",
   download: "border border-accent-line bg-accent-soft text-accent-text hover:border-accent hover:bg-accent/20",
 };

@@ -90,7 +90,7 @@ export default function Settings() {
                     className={cn(
                       "relative flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-[border-color,background-color] duration-150",
                       "has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-ring",
-                      checked ? "border-accent bg-accent-soft/60 ring-1 ring-accent" : "border-line hover:border-line-strong hover:bg-subtle",
+                      checked ? "border-accent bg-accent-soft/60 ring-1 ring-accent" : "border-line hover:border-accent-line hover:bg-accent-soft/50",
                     )}
                   >
                     <input
