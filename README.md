@@ -25,6 +25,11 @@ npm install
 The port is 3001 unless you set `PORT` (see below). Other scripts: `npm run build` (type-check server, build web),
 `npm test` (server and web tests).
 
+The web app (`web/`) is React + Vite, styled with Tailwind CSS v4 through `@tailwindcss/vite`. Design tokens and the
+Light / Dark / Auto theme live in `web/src/index.css`; shared components (buttons, cards, fields, tabs, dialog, score
+ring, ...) are in `web/src/components/ui/`. The Inter font is bundled from `@fontsource-variable/inter`, so the UI
+makes no font or CDN requests at runtime.
+
 ## Gemini API key
 
 1. Copy `.env.example` to `.env` in the repository root (next to `package.json`).
