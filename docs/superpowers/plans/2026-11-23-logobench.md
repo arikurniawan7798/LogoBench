@@ -11,7 +11,7 @@
 **Spec:** `docs/superpowers/specs/2026-11-23-logo-review-app-design.md`
 
 ## Global Constraints
-- Project root: `C:\Users\user\Documents\playground\logobench\`. Run `git init` there in Task 1.
+- Project root: the `logobench/` repository folder. Run `git init` there in Task 1.
 - Windows 11; avoid dependencies needing hard native builds (`sharp` ships prebuilt binaries, fine).
 - Single user, no auth, no accounts/credits/pricing. Backend binds to `127.0.0.1` only.
 - Own name, branding, copy: never reuse any existing product's name, wording, stats, testimonials or look.
